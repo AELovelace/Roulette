@@ -10,6 +10,7 @@ const SGC_API_KEY = process.env.SGC_API_KEY || "";
 const SGC_OAUTH_CLIENT_ID = process.env.SGC_OAUTH_CLIENT_ID || "";
 const SGC_OAUTH_REDIRECT_URI = process.env.SGC_OAUTH_REDIRECT_URI || "";
 const SGC_OAUTH_SCOPE = process.env.SGC_OAUTH_SCOPE || "balance:read coins:debit coins:credit";
+const SGC_PUBLIC_ORIGIN = (process.env.SGC_PUBLIC_ORIGIN || "").replace(/\/$/, "");
 const wheelOrder = [
   0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23,
   10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
@@ -91,13 +92,36 @@ function hasOauthConfig() {
   return !!(SGC_BASE_URL && SGC_API_KEY && SGC_OAUTH_CLIENT_ID && SGC_OAUTH_REDIRECT_URI);
 }
 
+function normalizePublicOrigin(rawOrigin) {
+  try {
+    const parsed = new URL(rawOrigin);
+    const proto = parsed.protocol === "http:" ? "http:" : "https:";
+    const host = parsed.hostname;
+    if (!host) {
+      return "";
+    }
+    // Public redirects should not leak internal high ports.
+    return `${proto}//${host}`;
+  } catch (error) {
+    return "";
+  }
+}
+
 function requestPublicOrigin(req, requestUrl) {
+  if (SGC_PUBLIC_ORIGIN) {
+    const configured = normalizePublicOrigin(SGC_PUBLIC_ORIGIN);
+    if (configured) {
+      return configured;
+    }
+  }
+
   const forwardedProtoRaw = String(req.headers["x-forwarded-proto"] || "");
   const forwardedHostRaw = String(req.headers["x-forwarded-host"] || "");
   const forwardedProto = forwardedProtoRaw.split(",")[0].trim();
-  const forwardedHost = forwardedHostRaw.split(",")[0].trim();
+  const forwardedHost = forwardedHostRaw.split(",")[0].trim().split(":")[0];
   const proto = forwardedProto || requestUrl.protocol.replace(":", "") || "https";
-  const host = forwardedHost || String(req.headers.host || "").split(",")[0].trim();
+  const hostHeader = String(req.headers.host || "").split(",")[0].trim();
+  const host = forwardedHost || hostHeader.split(":")[0];
   if (!host) {
     return "";
   }
@@ -117,7 +141,10 @@ function isPrivateOrLoopbackHost(hostname) {
 function rewriteAuthorizeUrlForPublicOrigin(authorizeUrl, publicOrigin) {
   try {
     const original = new URL(authorizeUrl);
-    if (!isPrivateOrLoopbackHost(original.hostname)) {
+    const needsRewrite = isPrivateOrLoopbackHost(original.hostname)
+      || (original.protocol === "https:" && original.port && original.port !== "443")
+      || (original.protocol === "http:" && original.port && original.port !== "80");
+    if (!needsRewrite) {
       return authorizeUrl;
     }
     if (!publicOrigin) {
