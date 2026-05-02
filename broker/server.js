@@ -107,6 +107,15 @@ function normalizePublicOrigin(rawOrigin) {
   }
 }
 
+function oauthRedirectOrigin() {
+  try {
+    const parsed = new URL(SGC_OAUTH_REDIRECT_URI);
+    return `${parsed.protocol}//${parsed.hostname}`;
+  } catch (error) {
+    return "";
+  }
+}
+
 function requestPublicOrigin(req, requestUrl) {
   if (SGC_PUBLIC_ORIGIN) {
     const configured = normalizePublicOrigin(SGC_PUBLIC_ORIGIN);
@@ -123,9 +132,10 @@ function requestPublicOrigin(req, requestUrl) {
   const hostHeader = String(req.headers.host || "").split(",")[0].trim();
   const host = forwardedHost || hostHeader.split(":")[0];
   if (!host) {
-    return "";
+    return oauthRedirectOrigin();
   }
-  return `${proto}://${host}`;
+  const inferred = `${proto}://${host}`;
+  return normalizePublicOrigin(inferred) || oauthRedirectOrigin();
 }
 
 function isPrivateOrLoopbackHost(hostname) {
@@ -153,6 +163,13 @@ function rewriteAuthorizeUrlForPublicOrigin(authorizeUrl, publicOrigin) {
     const publicBase = new URL(publicOrigin);
     original.protocol = publicBase.protocol;
     original.host = publicBase.host;
+
+    // Final guard: if a non-standard port somehow remains, strip it.
+    if ((original.protocol === "https:" && original.port && original.port !== "443")
+      || (original.protocol === "http:" && original.port && original.port !== "80")) {
+      original.hostname = publicBase.hostname;
+      original.port = "";
+    }
     return original.toString();
   } catch (error) {
     return authorizeUrl;
@@ -1897,6 +1914,14 @@ httpServer.listen(PORT, HOST, () => {
   if (hasOauthConfig()) {
     console.log(`[broker] oauth upstream: ${SGC_BASE_URL}`);
     console.log(`[broker] oauth redirect_uri: ${SGC_OAUTH_REDIRECT_URI}`);
+    if (SGC_PUBLIC_ORIGIN) {
+      console.log(`[broker] oauth public_origin: ${normalizePublicOrigin(SGC_PUBLIC_ORIGIN) || SGC_PUBLIC_ORIGIN}`);
+    } else {
+      const fallbackOrigin = oauthRedirectOrigin();
+      if (fallbackOrigin) {
+        console.log(`[broker] oauth public_origin fallback from redirect_uri: ${fallbackOrigin}`);
+      }
+    }
   }
   if (!SGC_WEBHOOK_SECRET) {
     console.warn(`[broker] WARNING: SGC_WEBHOOK_SECRET not set; webhook signatures will not validate`);
