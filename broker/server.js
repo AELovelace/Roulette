@@ -1680,10 +1680,11 @@ const httpServer = http.createServer((req, res) => {
 
     const stateKey = base64Url(crypto.randomBytes(24));
     const pkce = buildPkcePair();
+    const requestedReturnTo = requestUrl.searchParams.get("return_to") || req.headers.referer || "";
     oauthPendingByState.set(stateKey, {
       externalId,
       externalName,
-      returnTo: sanitizeReturnUrl(requestUrl.searchParams.get("return_to") || ""),
+      returnTo: sanitizeReturnUrl(requestedReturnTo),
       verifier: pkce.verifier,
       createdAt: Date.now(),
     });

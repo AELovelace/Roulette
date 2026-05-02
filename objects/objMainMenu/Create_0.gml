@@ -11,6 +11,8 @@ if (!variable_global_exists("sgcDisplayName")) global.sgcDisplayName = "";
 if (!variable_global_exists("sgcExternalId")) global.sgcExternalId  = "";
 if (!variable_global_exists("sgcLinkCode"))    global.sgcLinkCode    = "";
 if (!variable_global_exists("sgcBrokerHttpBase")) global.sgcBrokerHttpBase = "https://sadgirlsclub.wtf";
+if (!variable_global_exists("sgcReturnToUrl")) global.sgcReturnToUrl = "";
+if (!variable_global_exists("sgcOauthPending")) global.sgcOauthPending = false;
 if (!variable_global_exists("sgcSessionPath")) global.sgcSessionPath = "sgc_session.ini";
 
 if (file_exists(global.sgcSessionPath)) {
@@ -20,12 +22,19 @@ if (file_exists(global.sgcSessionPath)) {
 	global.sgcExternalId = ini_read_string("sgc", "external_id", global.sgcExternalId);
 	global.sgcLinkCode = ini_read_string("sgc", "link_code", global.sgcLinkCode);
 	global.sgcBrokerHttpBase = ini_read_string("sgc", "broker_http_base", global.sgcBrokerHttpBase);
+	global.sgcReturnToUrl = ini_read_string("sgc", "return_to_url", global.sgcReturnToUrl);
+	global.sgcOauthPending = ini_read_real("sgc", "oauth_pending", global.sgcOauthPending ? 1 : 0) == 1;
 	ini_close();
 }
 
 oauthPollRequestId = -1;
 oauthPollCooldown = 0;
-oauthAwaitingBrowserLink = false;
+oauthAwaitingBrowserLink = global.sgcOauthPending && string_trim(global.sgcExternalId) != "";
+if (oauthAwaitingBrowserLink) {
+	signInOpen = true;
+	statusText = "[SGC] resuming OAuth sign-in...";
+	oauthPollCooldown = 1;
+}
 
 backgroundTop = make_color_rgb(5, 6, 10);
 backgroundBottom = make_color_rgb(34, 15, 38);

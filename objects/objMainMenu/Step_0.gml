@@ -23,6 +23,8 @@ function menuSaveSgcSession() {
 	ini_write_string("sgc", "external_id", global.sgcExternalId);
 	ini_write_string("sgc", "link_code", global.sgcLinkCode);
 	ini_write_string("sgc", "broker_http_base", global.sgcBrokerHttpBase);
+	ini_write_string("sgc", "return_to_url", variable_global_exists("sgcReturnToUrl") ? global.sgcReturnToUrl : "");
+	ini_write_real("sgc", "oauth_pending", variable_global_exists("sgcOauthPending") && global.sgcOauthPending ? 1 : 0);
 	ini_close();
 }
 
@@ -50,6 +52,14 @@ function menuQueueOauthStatusPoll(_delayFrames) {
 	oauthPollCooldown = max(0, _delayFrames);
 }
 
+function menuOauthReturnUrl() {
+	if (variable_global_exists("sgcReturnToUrl")) {
+		var candidate = string_trim(global.sgcReturnToUrl);
+		if (candidate != "") return candidate;
+	}
+	return "";
+}
+
 function menuRequestOauthStatus() {
 	if (!oauthAwaitingBrowserLink) return;
 	if (oauthPollRequestId != -1) return;
@@ -75,16 +85,20 @@ function menuStartDiscordOAuth() {
 	var baseUrl = variable_global_exists("sgcBrokerHttpBase") ? string_trim(global.sgcBrokerHttpBase) : "https://sadgirlsclub.wtf";
 	if (baseUrl == "") baseUrl = "https://sadgirlsclub.wtf";
 	var outboundName = global.sgcDisplayName;
-	var returnUrl = url_get_full();
+	var returnUrl = menuOauthReturnUrl();
 	if (string_trim(outboundName) == "") outboundName = "";
 	var oauthUrl = baseUrl
 		+ "/sgc/oauth/start?external_id=" + menuUrlComponent(global.sgcExternalId)
-		+ "&external_name=" + menuUrlComponent(outboundName)
-		+ "&return_to=" + menuUrlComponent(returnUrl);
-	url_open_full(oauthUrl, "sgc_oauth_popup", "width=520,height=760,location=1,menubar=0,toolbar=0,status=0,resizable=1,scrollbars=1");
+		+ "&external_name=" + menuUrlComponent(outboundName);
+	if (returnUrl != "") {
+		oauthUrl += "&return_to=" + menuUrlComponent(returnUrl);
+	}
+	global.sgcOauthPending = true;
+	menuSaveSgcSession();
+	url_open_ext(oauthUrl, "_self");
 	oauthAwaitingBrowserLink = true;
 	menuQueueOauthStatusPoll(room_speed div 2);
-	statusText = "[SGC] OAuth popup opened. Waiting for confirmation...";
+	statusText = "[SGC] opening OAuth sign-in...";
 }
 
 function menuCancelSignIn() {
@@ -92,6 +106,8 @@ function menuCancelSignIn() {
 	oauthAwaitingBrowserLink = false;
 	oauthPollRequestId = -1;
 	oauthPollCooldown = 0;
+	global.sgcOauthPending = false;
+	menuSaveSgcSession();
 	statusText = "[SYS] sign-in cancelled.";
 }
 

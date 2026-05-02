@@ -31,6 +31,7 @@ if (rouletteStructGet(parsed, "linked", false)) {
 	if (linkedDisplayName != "") {
 		global.sgcDisplayName = linkedDisplayName;
 	}
+	global.sgcOauthPending = false;
 	menuSaveSgcSession();
 	oauthAwaitingBrowserLink = false;
 	signInOpen = false;
@@ -41,4 +42,5 @@ if (rouletteStructGet(parsed, "linked", false)) {
 }
 
 menuQueueOauthStatusPoll(room_speed div 2);
+global.sgcOauthPending = true;
 statusText = "[SGC] waiting for broker confirmation...";
