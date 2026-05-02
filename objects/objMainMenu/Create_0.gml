@@ -100,6 +100,13 @@ signInOAuthButton = {
 	h: 80,
 	label: "Continue with Discord OAuth"
 };
+signInSignOutButton = {
+	x: signInPanel.x1 + 40,
+	y: signInPanel.y1 + 240,
+	w: (signInPanel.x2 - signInPanel.x1) - 80,
+	h: 64,
+	label: "Sign Out & Clear Local Session"
+};
 signInCancelButton = {
 	x: room_width * 0.5 - 100,
 	y: signInPanel.y2 - 80,

@@ -113,6 +113,7 @@ if (signInOpen) {
 	draw_set_valign(fa_middle);
 
 	var oauthFill = (hoveredButton == "signin_oauth") ? buttonHoverColor : make_color_rgb(40, 30, 64);
+	var signOutFill = (hoveredButton == "signin_signout") ? make_color_rgb(180, 45, 64) : make_color_rgb(72, 24, 36);
 	var cancelFill  = (hoveredButton == "signin_cancel")  ? buttonAltHoverColor : buttonAltColor;
 
 	// Draw OAuth button
@@ -122,6 +123,16 @@ if (signInOpen) {
 	draw_roundrect(signInOAuthButton.x, signInOAuthButton.y, signInOAuthButton.x + signInOAuthButton.w, signInOAuthButton.y + signInOAuthButton.h, true);
 	draw_set_color(textColor);
 	draw_text(signInOAuthButton.x + signInOAuthButton.w * 0.5, signInOAuthButton.y + signInOAuthButton.h * 0.5, signInOAuthButton.label);
+
+	if (global.sgcSignedIn) {
+		// Draw Sign Out button
+		draw_set_color(signOutFill);
+		draw_roundrect(signInSignOutButton.x, signInSignOutButton.y, signInSignOutButton.x + signInSignOutButton.w, signInSignOutButton.y + signInSignOutButton.h, false);
+		draw_set_color(make_color_rgb(255, 120, 140));
+		draw_roundrect(signInSignOutButton.x, signInSignOutButton.y, signInSignOutButton.x + signInSignOutButton.w, signInSignOutButton.y + signInSignOutButton.h, true);
+		draw_set_color(textColor);
+		draw_text(signInSignOutButton.x + signInSignOutButton.w * 0.5, signInSignOutButton.y + signInSignOutButton.h * 0.5, signInSignOutButton.label);
+	}
 
 	// Draw Cancel button
 	draw_set_color(cancelFill);

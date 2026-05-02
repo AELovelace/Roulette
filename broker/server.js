@@ -1969,6 +1969,22 @@ wss.on("connection", (socket) => {
       return;
     }
 
+    if (message.type === "sign_out") {
+      acknowledgeSignedInDelivery(player, "sign_out_reset");
+      player.sgcSignedIn = false;
+      player.sgcExternalId = "";
+      player.sgcLinkCode = "";
+      player.name = (typeof message.name === "string" && message.name.trim())
+        ? message.name.trim().slice(0, 24)
+        : "Player";
+      player.bankroll = DEFAULT_BANKROLL;
+      console.log(`[sgc] sign_out id=${player.id} name=${player.name}`);
+      queueSignedInDelivery(player, false, "", "", "sign_out");
+      broadcastState();
+      for (const game of tableGames) broadcastTableGame(game);
+      return;
+    }
+
     if (message.type === "join") {
       acknowledgeSignedInDelivery(player, "join_reset");
       if (typeof message.name === "string" && message.name.trim()) {

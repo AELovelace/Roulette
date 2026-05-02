@@ -65,18 +65,25 @@ switch (eventType) {
 					show_debug_message("[table] signed_in payload -> signedIn=" + string(signedState) + " externalId=" + externalId + " displayName=" + displayName);
 					global.sgcSignedIn = signedState;
 					global.sgcExternalId = externalId;
-					if (displayName != "") {
+					if (!signedState) {
+						global.sgcDisplayName = "";
+						global.sgcLinkCode = "";
+					} else if (displayName != "") {
 						global.sgcDisplayName = displayName;
 						tablePlayerName = displayName;
 					}
 					if (!variable_global_exists("sgcSessionPath")) global.sgcSessionPath = "sgc_session.ini";
-					ini_open(global.sgcSessionPath);
-					ini_write_real("sgc", "signed_in", global.sgcSignedIn ? 1 : 0);
-					ini_write_string("sgc", "display_name", global.sgcDisplayName);
-					ini_write_string("sgc", "external_id", global.sgcExternalId);
-					ini_write_string("sgc", "link_code", variable_global_exists("sgcLinkCode") ? global.sgcLinkCode : "");
-					ini_write_string("sgc", "broker_http_base", variable_global_exists("sgcBrokerHttpBase") ? global.sgcBrokerHttpBase : "https://sadgirlsclub.wtf");
-					ini_close();
+					if (!signedState) {
+						if (file_exists(global.sgcSessionPath)) file_delete(global.sgcSessionPath);
+					} else {
+						ini_open(global.sgcSessionPath);
+						ini_write_real("sgc", "signed_in", global.sgcSignedIn ? 1 : 0);
+						ini_write_string("sgc", "display_name", global.sgcDisplayName);
+						ini_write_string("sgc", "external_id", global.sgcExternalId);
+						ini_write_string("sgc", "link_code", variable_global_exists("sgcLinkCode") ? global.sgcLinkCode : "");
+						ini_write_string("sgc", "broker_http_base", variable_global_exists("sgcBrokerHttpBase") ? global.sgcBrokerHttpBase : "https://sadgirlsclub.wtf");
+						ini_close();
+					}
 					rouletteSendJson(tableBrokerSocket, {
 						type: "signed_in_ack"
 					});

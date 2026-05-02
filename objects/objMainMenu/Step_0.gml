@@ -28,6 +28,23 @@ function menuSaveSgcSession() {
 	ini_close();
 }
 
+function menuSignOutSgc() {
+	if (!variable_global_exists("sgcSessionPath")) global.sgcSessionPath = "sgc_session.ini";
+	oauthAwaitingBrowserLink = false;
+	oauthPollRequestId = -1;
+	oauthPollCooldown = 0;
+	global.sgcSignedIn = false;
+	global.sgcDisplayName = "";
+	global.sgcExternalId = "";
+	global.sgcLinkCode = "";
+	global.sgcOauthPending = false;
+	if (file_exists(global.sgcSessionPath)) {
+		file_delete(global.sgcSessionPath);
+	}
+	signInOpen = false;
+	statusText = "[SGC] signed out. Local player session deleted.";
+}
+
 function menuExternalIdFromName(_name) {
 	var out = string_lower(string_trim(_name));
 	out = string_replace_all(out, " ", "_");
@@ -143,17 +160,22 @@ if (signInOpen) {
 	}
 
 	// Button hover detection - verify structs exist first
-	if (!is_struct(signInOAuthButton) || !is_struct(signInCancelButton)) {
+	if (!is_struct(signInOAuthButton) || !is_struct(signInSignOutButton) || !is_struct(signInCancelButton)) {
 		statusText = "[ERROR] Button structs not initialized!";
 		exit;
 	}
 	
 	var overOAuth   = point_in_rectangle(mouseXPos, mouseYPos, signInOAuthButton.x,   signInOAuthButton.y,   signInOAuthButton.x   + signInOAuthButton.w,   signInOAuthButton.y   + signInOAuthButton.h);
+	var overSignOut = point_in_rectangle(mouseXPos, mouseYPos, signInSignOutButton.x, signInSignOutButton.y, signInSignOutButton.x + signInSignOutButton.w, signInSignOutButton.y + signInSignOutButton.h);
 	var overCancel  = point_in_rectangle(mouseXPos, mouseYPos, signInCancelButton.x,  signInCancelButton.y,  signInCancelButton.x  + signInCancelButton.w,  signInCancelButton.y  + signInCancelButton.h);
 	
 	if (overOAuth) {
 		hoveredButton = "signin_oauth";
 		if (!oauthAwaitingBrowserLink) statusText = "Click to authenticate with Discord";
+	}
+	else if (overSignOut && global.sgcSignedIn) {
+		hoveredButton = "signin_signout";
+		if (!oauthAwaitingBrowserLink) statusText = "Delete local player session and sign out";
 	}
 	else if (overCancel) {
 		hoveredButton = "signin_cancel";
@@ -161,15 +183,19 @@ if (signInOpen) {
 	}
 
 	if (keyboard_check_pressed(ord("O"))) menuStartDiscordOAuth();
+	if (keyboard_check_pressed(ord("L")) && global.sgcSignedIn) menuSignOutSgc();
 	if (keyboard_check_pressed(vk_escape)) menuCancelSignIn();
 
 	// Button click handling
 	if (mouse_check_button_pressed(mb_left)) {
 		var clickedOAuth = point_in_rectangle(mouseXPos, mouseYPos, signInOAuthButton.x, signInOAuthButton.y, signInOAuthButton.x + signInOAuthButton.w, signInOAuthButton.y + signInOAuthButton.h);
+		var clickedSignOut = point_in_rectangle(mouseXPos, mouseYPos, signInSignOutButton.x, signInSignOutButton.y, signInSignOutButton.x + signInSignOutButton.w, signInSignOutButton.y + signInSignOutButton.h);
 		var clickedCancel = point_in_rectangle(mouseXPos, mouseYPos, signInCancelButton.x, signInCancelButton.y, signInCancelButton.x + signInCancelButton.w, signInCancelButton.y + signInCancelButton.h);
 		
 		if (clickedOAuth) {
 			menuStartDiscordOAuth();
+		} else if (clickedSignOut && global.sgcSignedIn) {
+			menuSignOutSgc();
 		} else if (clickedCancel) {
 			menuCancelSignIn();
 		}
