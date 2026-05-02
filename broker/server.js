@@ -2082,17 +2082,13 @@ wss.on("connection", (socket) => {
   });
 
   socket.on("close", () => {
-          console.warn(
-            "[sgc][oauth] missing Discord username in token response; keeping existing in-game name. Check that the app record and grant both include identity:read."
-          );
     const tableGame = tableLobby?.game;
-        console.log(`[sgc][oauth] resolved display name: ${resolvedName || "(unchanged)"}`);
     state.players.delete(player.id);
     broadcastState();
     if (tableGame) broadcastTableGame(tableGame);
   });
 });
-          `<p>Your Sadgirlcoin account is now linked${resolvedName ? ` for <code>${htmlEscape(resolvedName)}</code>` : ""}.</p><p>You can return to the game.</p>${resolvedName ? "" : "<p><strong>Note:</strong> The OAuth grant did not return Discord identity fields. Enable <code>identity:read</code> on the app and re-authorize to use your Discord username in-game.</p>"}`
+
 httpServer.listen(PORT, HOST, () => {
   console.log(`[broker] listening on ws://${HOST}:${PORT}`);
   console.log(`[broker] webhook endpoint: http://${HOST}:${PORT}/sgc/webhook`);
