@@ -54,6 +54,7 @@ switch (eventType) {
 					var signedState = rouletteStructGet(message, "signedIn", false);
 					var externalId = rouletteStructGet(message, "externalId", "");
 					var displayName = rouletteStructGet(message, "displayName", "");
+					show_debug_message("[wheel] signed_in payload -> signedIn=" + string(signedState) + " externalId=" + externalId + " displayName=" + displayName);
 					global.sgcSignedIn = signedState;
 					global.sgcExternalId = externalId;
 					if (displayName != "") {

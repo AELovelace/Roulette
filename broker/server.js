@@ -13,6 +13,7 @@ const SGC_OAUTH_REDIRECT_URI = process.env.SGC_OAUTH_REDIRECT_URI || "";
 const SGC_OAUTH_SCOPE = process.env.SGC_OAUTH_SCOPE || "balance:read coins:debit coins:credit";
 const SGC_PUBLIC_ORIGIN = (process.env.SGC_PUBLIC_ORIGIN || "").replace(/\/$/, "");
 const DEFAULT_BANKROLL = 1000;
+const SGC_DEBUG_SIGNIN = process.env.SGC_DEBUG_SIGNIN === "1";
 const wheelOrder = [
   0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23,
   10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
@@ -188,6 +189,12 @@ function oauthErrorDetail(error) {
   return top;
 }
 
+function logSignedInPayload(player, signedIn, externalId, displayName, source) {
+  console.log(
+    `[sgc][to-gm][${source}] player=${player.id} signedIn=${signedIn} externalId=${externalId || "-"} displayName=${displayName || "-"}`
+  );
+}
+
 function hasSgcApiConfig() {
   return !!(SGC_BASE_URL && SGC_API_KEY);
 }
@@ -297,6 +304,7 @@ function markOauthLinked(externalId, displayName) {
 
       refreshPlayerBankrollFromSgc(player, "oauth_linked")
         .finally(() => {
+          logSignedInPayload(player, true, player.sgcExternalId, displayName || player.name, "oauth_linked");
           sendJson(player.socket, {
             type: "signed_in",
             playerId: player.id,
@@ -1648,10 +1656,31 @@ const httpServer = http.createServer((req, res) => {
           return;
         }
 
+        if (SGC_DEBUG_SIGNIN) {
+          console.log("[sgc][oauth] token payload keys:", Object.keys(parsed || {}));
+          console.log("[sgc][oauth] token name candidates:", {
+            user_display_name: parsed?.user?.display_name,
+            user_global_name: parsed?.user?.global_name,
+            user_username: parsed?.user?.username,
+            discord_user_display_name: parsed?.discord_user?.display_name,
+            discord_user_global_name: parsed?.discord_user?.global_name,
+            discord_user_username: parsed?.discord_user?.username,
+            account_display_name: parsed?.account?.display_name,
+            account_username: parsed?.account?.username,
+            profile_display_name: parsed?.profile?.display_name,
+            profile_username: parsed?.profile?.username,
+            display_name: parsed?.display_name,
+            username: parsed?.username,
+            external_name: parsed?.external_name,
+            link_discord_name: parsed?.link?.discord_name,
+          });
+        }
+
         var resolvedName = resolveDisplayNameFromOauthPayload(parsed, pending.externalName);
         if (!resolvedName) {
           resolvedName = String(pending.externalId || "Player").slice(0, 24);
         }
+        console.log(`[sgc][oauth] resolved display name: ${resolvedName}`);
         markOauthLinked(pending.externalId, resolvedName);
         writeHtml(
           res,
@@ -1798,6 +1827,7 @@ wss.on("connection", (socket) => {
         externalId: player.sgcExternalId || "",
         displayName: player.name
       });
+      logSignedInPayload(player, player.sgcSignedIn, player.sgcExternalId || "", player.name, "join");
       broadcastState();
       for (const game of tableGames) broadcastTableGame(game);
       return;
