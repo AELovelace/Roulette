@@ -16,11 +16,17 @@
   "exportToGame":true,
   "extensionVersion":"1.0.0",
   "files":[
-    {"$GMExtensionFile":"v1","%Name":"","constants":[],"copyToTargets":-1,"filename":"SGCOAuthBridge.ext","final":"","functions":[
+    {"$GMExtensionFile":"","%Name":"","constants":[],"copyToTargets":-1,"filename":"SGCOAuthBridge.ext","final":"","functions":[
         {"$GMExtensionFunction":"","%Name":"sgc_oauth_popup_open","argCount":0,"args":[1,],"documentation":"","externalName":"sgc_oauth_popup_open","help":"sgc_oauth_popup_open(url)","hidden":false,"kind":4,"name":"sgc_oauth_popup_open","resourceType":"GMExtensionFunction","resourceVersion":"2.0","returnType":2,},
         {"$GMExtensionFunction":"","%Name":"sgc_browser_get_url","argCount":0,"args":[],"documentation":"","externalName":"sgc_browser_get_url","help":"sgc_browser_get_url()","hidden":false,"kind":4,"name":"sgc_browser_get_url","resourceType":"GMExtensionFunction","resourceVersion":"2.0","returnType":1,},
         {"$GMExtensionFunction":"","%Name":"sgc_oauth_popup_focus","argCount":0,"args":[],"documentation":"","externalName":"sgc_oauth_popup_focus","help":"sgc_oauth_popup_focus()","hidden":false,"kind":4,"name":"sgc_oauth_popup_focus","resourceType":"GMExtensionFunction","resourceVersion":"2.0","returnType":2,},
-      ],"init":"","kind":4,"name":"","origname":"extensions\\SGCOAuthBridge.ext","ProxyFiles":[
+        {"$GMExtensionFunction":"","%Name":"sgc_oauth_complete_consume","argCount":0,"args":[],"documentation":"","externalName":"sgc_oauth_complete_consume","help":"sgc_oauth_complete_consume()","hidden":false,"kind":4,"name":"sgc_oauth_complete_consume","resourceType":"GMExtensionFunction","resourceVersion":"2.0","returnType":2,},
+      ],"init":"","kind":4,"name":"","order":[
+        {"name":"sgc_oauth_popup_open","path":"extensions/SGCOAuthBridge/SGCOAuthBridge.yy",},
+        {"name":"sgc_browser_get_url","path":"extensions/SGCOAuthBridge/SGCOAuthBridge.yy",},
+        {"name":"sgc_oauth_popup_focus","path":"extensions/SGCOAuthBridge/SGCOAuthBridge.yy",},
+        {"name":"sgc_oauth_complete_consume","path":"extensions/SGCOAuthBridge/SGCOAuthBridge.yy",}
+      ],"origname":"extensions\\SGCOAuthBridge.ext","ProxyFiles":[
         {"$GMProxyFile":"","%Name":"SGCOAuthBridge.js","name":"SGCOAuthBridge.js","resourceType":"GMProxyFile","resourceVersion":"2.0","TargetMask":5,},
       ],"resourceType":"GMExtensionFile","resourceVersion":"2.0","uncompress":false,"usesRunnerInterface":false,},
   ],
