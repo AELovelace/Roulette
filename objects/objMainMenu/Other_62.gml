@@ -42,6 +42,17 @@ if (rouletteStructGet(parsed, "linked", false)) {
 	exit;
 }
 
+var pollError = rouletteStructGet(parsed, "error", undefined);
+if (!is_undefined(pollError) && is_struct(pollError)) {
+	var errCode = rouletteStructGet(pollError, "code", "");
+	var errMsg  = rouletteStructGet(pollError, "message", "Sign-in failed.");
+	oauthAwaitingBrowserLink = false;
+	oauthPollRequestId = -1;
+	global.sgcOauthPending = false;
+	statusText = "[SGC] " + errMsg;
+	exit;
+}
+
 menuQueueOauthStatusPoll(room_speed div 2);
 global.sgcOauthPending = true;
 statusText = "[SGC] waiting for broker confirmation...";

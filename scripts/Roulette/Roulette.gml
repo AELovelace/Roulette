@@ -4,8 +4,16 @@
 
 /// @desc Resize the application surface and GUI layer to match the OS window each step.
 function viewResize() {
-	var _ww = max(100, window_get_width());
-	var _wh = max(100, window_get_height());
+	var _ww, _wh;
+	if (os_browser != browser_not_a_browser) {
+		// HTML5: browser_width/height give the actual viewport; resize the canvas to match
+		_ww = max(100, browser_width);
+		_wh = max(100, browser_height);
+		window_set_size(_ww, _wh);
+	} else {
+		_ww = max(100, window_get_width());
+		_wh = max(100, window_get_height());
+	}
 	if (surface_get_width(application_surface) != _ww || surface_get_height(application_surface) != _wh) {
 		surface_resize(application_surface, _ww, _wh);
 		display_set_gui_size(_ww, _wh);

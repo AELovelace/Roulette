@@ -35,6 +35,7 @@ const state = {
 
 const oauthPendingByState = new Map();
 const oauthCompletedBySessionId = new Map();
+const oauthFailedBySessionId = new Map();
 const oauthPendingTtlMs = 10 * 60 * 1000;
 const identityStore = new IdentityStore({
   filePath: path.join(process.cwd(), "data", "identity-store.json"),
@@ -61,6 +62,12 @@ function cleanupOauthPending() {
   for (const [sessionId, completed] of oauthCompletedBySessionId.entries()) {
     if ((now - completed.linkedAt) > oauthPendingTtlMs) {
       oauthCompletedBySessionId.delete(sessionId);
+    }
+  }
+
+  for (const [sessionId, failed] of oauthFailedBySessionId.entries()) {
+    if ((now - failed.failedAt) > oauthPendingTtlMs) {
+      oauthFailedBySessionId.delete(sessionId);
     }
   }
 }
@@ -1838,6 +1845,62 @@ const httpServer = http.createServer((req, res) => {
         }
 
         if (!tokenRes.ok) {
+          console.error(`[sgc][oauth] token exchange failed (${tokenRes.status}):`, JSON.stringify(parsed, null, 2));
+          const errCode = parsed?.error?.code || parsed?.code || "";
+          if (errCode === "discord_already_linked_to_different_external_id") {
+            // The Discord account is already linked to a different external_id on SGC.
+            // Try to find and revoke the old link so the player can retry.
+            const existingExtId =
+              parsed?.existing_external_id ||
+              parsed?.error?.existing_external_id ||
+              parsed?.conflicting_external_id ||
+              parsed?.error?.conflicting_external_id ||
+              null;
+            const discordIdFromError =
+              String(parsed?.discord_id || parsed?.user?.discord_id || parsed?.error?.discord_id || "").trim() || null;
+            let revokeTarget = existingExtId;
+            if (!revokeTarget && discordIdFromError) {
+              const stored = identityStore.getByDiscordId(discordIdFromError);
+              if (stored?.appId && stored.appId !== pending.externalId) revokeTarget = stored.appId;
+            }
+            if (revokeTarget) {
+              console.log(`[sgc][oauth] auto-revoking conflicting SGC link for external_id=${revokeTarget}`);
+              fetch(`${SGC_BASE_URL}/v1/links/${encodeURIComponent(revokeTarget)}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${SGC_API_KEY}`, "Content-Type": "application/json", Accept: "application/json" },
+              }).then(async (delRes) => {
+                console.log(`[sgc][oauth] revoke ${revokeTarget} -> ${delRes.status}`);
+              }).catch((e) => {
+                console.error(`[sgc][oauth] revoke fetch error: ${oauthErrorDetail(e)}`);
+              });
+              oauthFailedBySessionId.set(pending.oauthSessionId, {
+                failedAt: Date.now(),
+                code: "relinked_retry",
+                message: "Previous Discord link removed. Please sign in again.",
+              });
+              writeHtml(
+                res,
+                409,
+                "Discord account re-linked",
+                `<p>Your Discord account was linked to a previous game identity and has been unlinked automatically.</p><p>Please close this window and <strong>sign in again</strong> from the game to complete linking.</p>`,
+                buildOauthReturnScript(pending.returnTo)
+              );
+            } else {
+              oauthFailedBySessionId.set(pending.oauthSessionId, {
+                failedAt: Date.now(),
+                code: "discord_already_linked",
+                message: "Discord already linked to a different identity. Run /lumi-link revoke app:roulette in Discord, then sign in again.",
+              });
+              writeHtml(
+                res,
+                409,
+                "Discord account conflict",
+                `<p>Your Discord account is already linked to a different game identity on Sadgirlcoin.</p><p>To fix this, run <code>/lumi-link revoke app:roulette</code> in Discord, then try signing in again.</p>`,
+                buildOauthReturnScript(pending.returnTo)
+              );
+            }
+            return;
+          }
           const message = htmlEscape(parsed?.error?.message || `Token exchange failed (${tokenRes.status}).`);
           writeHtml(res, 502, "OAuth sign-in failed", `<p>${message}</p>`);
           return;
@@ -1935,6 +1998,7 @@ const httpServer = http.createServer((req, res) => {
     const sessionId = (requestUrl.searchParams.get("session_id") || "").trim();
     const oauthRecord = getCompletedOauthSession(sessionId);
     const linked = !!oauthRecord;
+    const failedRecord = !linked ? (oauthFailedBySessionId.get(String(sessionId || "").trim()) || null) : null;
     res.writeHead(200, { "Content-Type": "application/json", ...corsHeaders() });
     res.end(JSON.stringify({
       ok: true,
@@ -1943,6 +2007,7 @@ const httpServer = http.createServer((req, res) => {
       external_id: oauthRecord?.externalId || "",
       display_name: oauthRecord?.displayName || "",
       linked_at: oauthRecord?.linkedAt || null,
+      error: failedRecord ? { code: failedRecord.code, message: failedRecord.message } : null,
     }));
     return;
   }
