@@ -8,6 +8,7 @@ const SGC_WEBHOOK_SECRET = process.env.SGC_WEBHOOK_SECRET || "";
 const SGC_BASE_URL = (process.env.SGC_BASE_URL || "").replace(/\/$/, "");
 const SGC_API_KEY = process.env.SGC_API_KEY || "";
 const SGC_OAUTH_CLIENT_ID = process.env.SGC_OAUTH_CLIENT_ID || "";
+const SGC_OAUTH_CLIENT_SECRET = process.env.SGC_OAUTH_CLIENT_SECRET || "";
 const SGC_OAUTH_REDIRECT_URI = process.env.SGC_OAUTH_REDIRECT_URI || "";
 const SGC_OAUTH_SCOPE = process.env.SGC_OAUTH_SCOPE || "balance:read coins:debit coins:credit";
 const SGC_PUBLIC_ORIGIN = (process.env.SGC_PUBLIC_ORIGIN || "").replace(/\/$/, "");
@@ -89,7 +90,7 @@ function writeHtml(res, statusCode, title, bodyHtml) {
 }
 
 function hasOauthConfig() {
-  return !!(SGC_BASE_URL && SGC_API_KEY && SGC_OAUTH_CLIENT_ID && SGC_OAUTH_REDIRECT_URI);
+  return !!(SGC_BASE_URL && SGC_API_KEY && SGC_OAUTH_CLIENT_ID && SGC_OAUTH_CLIENT_SECRET && SGC_OAUTH_REDIRECT_URI);
 }
 
 function normalizePublicOrigin(rawOrigin) {
@@ -1413,7 +1414,7 @@ const httpServer = http.createServer((req, res) => {
         res,
         503,
         "Discord OAuth unavailable",
-        "<p>Broker OAuth is not configured. Set <code>SGC_BASE_URL</code>, <code>SGC_API_KEY</code>, <code>SGC_OAUTH_CLIENT_ID</code>, and <code>SGC_OAUTH_REDIRECT_URI</code>.</p>"
+        "<p>Broker OAuth is not configured. Set <code>SGC_BASE_URL</code>, <code>SGC_API_KEY</code>, <code>SGC_OAUTH_CLIENT_ID</code>, <code>SGC_OAUTH_CLIENT_SECRET</code>, and <code>SGC_OAUTH_REDIRECT_URI</code>.</p>"
       );
       return;
     }
@@ -1522,6 +1523,7 @@ const httpServer = http.createServer((req, res) => {
     const tokenPayload = {
       grant_type: "authorization_code",
       client_id: SGC_OAUTH_CLIENT_ID,
+      client_secret: SGC_OAUTH_CLIENT_SECRET,
       redirect_uri: SGC_OAUTH_REDIRECT_URI,
       code,
       code_verifier: pending.verifier,
@@ -1914,6 +1916,7 @@ httpServer.listen(PORT, HOST, () => {
   if (hasOauthConfig()) {
     console.log(`[broker] oauth upstream: ${SGC_BASE_URL}`);
     console.log(`[broker] oauth redirect_uri: ${SGC_OAUTH_REDIRECT_URI}`);
+    console.log(`[broker] oauth client_secret: configured`);
     if (SGC_PUBLIC_ORIGIN) {
       console.log(`[broker] oauth public_origin: ${normalizePublicOrigin(SGC_PUBLIC_ORIGIN) || SGC_PUBLIC_ORIGIN}`);
     } else {
@@ -1925,6 +1928,9 @@ httpServer.listen(PORT, HOST, () => {
   }
   if (!SGC_WEBHOOK_SECRET) {
     console.warn(`[broker] WARNING: SGC_WEBHOOK_SECRET not set; webhook signatures will not validate`);
+  }
+  if (!SGC_OAUTH_CLIENT_SECRET) {
+    console.warn("[broker] WARNING: SGC_OAUTH_CLIENT_SECRET not set; OAuth token exchange will fail");
   }
   if (!hasOauthConfig()) {
     console.warn("[broker] WARNING: OAuth env vars missing; Discord OAuth route will be unavailable");
