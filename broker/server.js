@@ -244,6 +244,69 @@ async function refreshPlayerBankrollFromSgc(player, reason = "sync") {
   }
 }
 
+async function fetchLinkStatusFromSgc(externalId) {
+  const key = String(externalId || "").trim();
+  if (!key || !hasSgcApiConfig()) {
+    return { ok: false, linked: false, status: 0, reason: "missing_config_or_external_id" };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(`${SGC_BASE_URL}/v1/links/by-external/${encodeURIComponent(key)}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${SGC_API_KEY}`,
+        Accept: "application/json",
+      },
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    let parsed = null;
+    if (text) {
+      try {
+        parsed = JSON.parse(text);
+      } catch (_error) {
+        parsed = null;
+      }
+    }
+
+    if (response.status === 200) {
+      return {
+        ok: true,
+        linked: true,
+        status: response.status,
+        link: parsed?.link || null,
+      };
+    }
+
+    if (response.status === 404) {
+      return {
+        ok: true,
+        linked: false,
+        status: response.status,
+        link: null,
+      };
+    }
+
+    return {
+      ok: false,
+      linked: false,
+      status: response.status,
+      error: parsed?.error?.message || "link lookup failed",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      linked: false,
+      status: 0,
+      error: oauthErrorDetail(error),
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function isOauthLinkedExternalId(externalId) {
   const key = String(externalId || "").trim();
   if (!key) return false;
@@ -1662,31 +1725,30 @@ const httpServer = http.createServer((req, res) => {
           return;
         }
 
-        // Always log the full token response when OAuth completes
-        console.log("[sgc][oauth] FULL TOKEN RESPONSE:", JSON.stringify(parsed, null, 2));
-        console.log("[sgc][oauth] token payload keys:", Object.keys(parsed || {}));
-        console.log("[sgc][oauth] token name candidates:", {
-          discord_username: parsed?.discord_username,
-          user_discord_username: parsed?.user?.discord_username,
-          discord_name: parsed?.discord_name,
-          user_discord_name: parsed?.user?.discord_name,
-          user_discord_id: parsed?.user?.discord_id,
-          user_discord_username: parsed?.user?.discord_username,
-          user_display_name: parsed?.user?.display_name,
-          user_global_name: parsed?.user?.global_name,
-          user_username: parsed?.user?.username,
-          discord_user_display_name: parsed?.discord_user?.display_name,
-          discord_user_global_name: parsed?.discord_user?.global_name,
-          discord_user_username: parsed?.discord_user?.username,
-          account_display_name: parsed?.account?.display_name,
-          account_username: parsed?.account?.username,
-          profile_display_name: parsed?.profile?.display_name,
-          profile_username: parsed?.profile?.username,
-          display_name: parsed?.display_name,
-          username: parsed?.username,
-          external_name: parsed?.external_name,
-          link_discord_name: parsed?.link?.discord_name,
-        });
+        if (SGC_DEBUG_SIGNIN) {
+          console.log("[sgc][oauth] token payload keys:", Object.keys(parsed || {}));
+          console.log("[sgc][oauth] token name candidates:", {
+            discord_username: parsed?.discord_username,
+            user_discord_username: parsed?.user?.discord_username,
+            discord_name: parsed?.discord_name,
+            user_discord_name: parsed?.user?.discord_name,
+            user_discord_id: parsed?.user?.discord_id,
+            user_display_name: parsed?.user?.display_name,
+            user_global_name: parsed?.user?.global_name,
+            user_username: parsed?.user?.username,
+            discord_user_display_name: parsed?.discord_user?.display_name,
+            discord_user_global_name: parsed?.discord_user?.global_name,
+            discord_user_username: parsed?.discord_user?.username,
+            account_display_name: parsed?.account?.display_name,
+            account_username: parsed?.account?.username,
+            profile_display_name: parsed?.profile?.display_name,
+            profile_username: parsed?.profile?.username,
+            display_name: parsed?.display_name,
+            username: parsed?.username,
+            external_name: parsed?.external_name,
+            link_discord_name: parsed?.link?.discord_name,
+          });
+        }
 
         var resolvedName = resolveDisplayNameFromOauthPayload(parsed, pending.externalName);
         if (!resolvedName) {
@@ -1699,7 +1761,7 @@ const httpServer = http.createServer((req, res) => {
           res,
           200,
           "Discord OAuth complete",
-          `<p>Your Sadgirlcoin account is now linked for <code>${htmlEscape(resolvedName)}</code>.</p><p>You can return to the game and press Confirm.</p>`
+          `<p>Your Sadgirlcoin account is now linked for <code>${htmlEscape(resolvedName)}</code>.</p><p>You can return to the game now.</p>`
         );
       })
       .catch((error) => {
@@ -1716,15 +1778,63 @@ const httpServer = http.createServer((req, res) => {
   }
 
   if (req.method === "GET" && pathname === "/sgc/oauth/status") {
-    const externalId = (requestUrl.searchParams.get("external_id") || "").trim();
-    const linked = isOauthLinkedExternalId(externalId);
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({
-      ok: true,
-      linked,
-      external_id: externalId,
-      linked_at: linked ? oauthLinkedByExternalId.get(externalId).linkedAt : null,
-    }));
+    const externalId = (requestUrl.searchParams.get("external_id") || "").trim().slice(0, 64);
+    if (!externalId) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        ok: false,
+        linked: false,
+        error: "missing external_id",
+      }));
+      return;
+    }
+
+    fetchLinkStatusFromSgc(externalId)
+      .then((result) => {
+        if (result.ok) {
+          // Keep local cache warm for quick ws join hydration.
+          if (result.linked && !oauthLinkedByExternalId.has(externalId)) {
+            oauthLinkedByExternalId.set(externalId, {
+              linkedAt: Date.now(),
+              displayName: "",
+            });
+          }
+          if (!result.linked) {
+            oauthLinkedByExternalId.delete(externalId);
+          }
+
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({
+            ok: true,
+            linked: result.linked,
+            external_id: externalId,
+            linked_at: result.link?.created_at || null,
+            source: "sgc_api",
+          }));
+          return;
+        }
+
+        const fallbackLinked = isOauthLinkedExternalId(externalId);
+        const fallbackRecord = fallbackLinked ? oauthLinkedByExternalId.get(externalId) : null;
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          ok: true,
+          linked: fallbackLinked,
+          external_id: externalId,
+          linked_at: fallbackRecord?.linkedAt || null,
+          source: "local_cache",
+          warning: result.error || `status_check_failed_${result.status}`,
+        }));
+      })
+      .catch((error) => {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          ok: false,
+          linked: false,
+          external_id: externalId,
+          error: oauthErrorDetail(error),
+        }));
+      });
     return;
   }
 
