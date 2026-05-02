@@ -75,14 +75,16 @@ function menuStartDiscordOAuth() {
 	var baseUrl = variable_global_exists("sgcBrokerHttpBase") ? string_trim(global.sgcBrokerHttpBase) : "https://sadgirlsclub.wtf";
 	if (baseUrl == "") baseUrl = "https://sadgirlsclub.wtf";
 	var outboundName = global.sgcDisplayName;
+	var returnUrl = url_get_full();
 	if (string_trim(outboundName) == "") outboundName = "";
 	var oauthUrl = baseUrl
 		+ "/sgc/oauth/start?external_id=" + menuUrlComponent(global.sgcExternalId)
-		+ "&external_name=" + menuUrlComponent(outboundName);
-	url_open(oauthUrl);
+		+ "&external_name=" + menuUrlComponent(outboundName)
+		+ "&return_to=" + menuUrlComponent(returnUrl);
+	url_open_full(oauthUrl, "sgc_oauth_popup", "width=520,height=760,location=1,menubar=0,toolbar=0,status=0,resizable=1,scrollbars=1");
 	oauthAwaitingBrowserLink = true;
 	menuQueueOauthStatusPoll(room_speed div 2);
-	statusText = "[SGC] browser opened for Discord OAuth. Waiting for confirmation...";
+	statusText = "[SGC] OAuth popup opened. Waiting for confirmation...";
 }
 
 function menuCancelSignIn() {

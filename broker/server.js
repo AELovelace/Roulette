@@ -120,6 +120,64 @@ function oauthReturnScript() {
 </script>`;
 }
 
+function sanitizeReturnUrl(rawUrl) {
+  const value = String(rawUrl || "").trim();
+  if (!value) return "";
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return "";
+    }
+    return parsed.toString();
+  } catch (error) {
+    return "";
+  }
+}
+
+function buildOauthReturnScript(returnUrl) {
+  const safeReturnUrl = sanitizeReturnUrl(returnUrl);
+  const returnUrlLiteral = JSON.stringify(safeReturnUrl);
+  return `<script>
+(() => {
+  const returnUrl = ${returnUrlLiteral};
+
+  const sendBackToGame = () => {
+    let bouncedToOpener = false;
+    try {
+      if (window.opener && !window.opener.closed) {
+        try {
+          window.opener.postMessage({ type: "sgc_oauth_complete" }, "*");
+        } catch (error) {}
+        try {
+          window.opener.focus();
+          bouncedToOpener = true;
+        } catch (error) {}
+        setTimeout(() => {
+          try {
+            window.close();
+          } catch (error) {}
+        }, 150);
+      }
+    } catch (error) {}
+
+    if (!bouncedToOpener && returnUrl) {
+      setTimeout(() => {
+        try {
+          window.location.replace(returnUrl);
+        } catch (error) {
+          window.location.href = returnUrl;
+        }
+      }, 400);
+    }
+  };
+
+  window.addEventListener("load", () => {
+    setTimeout(sendBackToGame, 300);
+  });
+})();
+</script>`;
+}
+
 function hasOauthConfig() {
   return !!(SGC_BASE_URL && SGC_API_KEY && SGC_OAUTH_CLIENT_ID && SGC_OAUTH_CLIENT_SECRET && SGC_OAUTH_REDIRECT_URI);
 }
@@ -1625,6 +1683,7 @@ const httpServer = http.createServer((req, res) => {
     oauthPendingByState.set(stateKey, {
       externalId,
       externalName,
+      returnTo: sanitizeReturnUrl(requestUrl.searchParams.get("return_to") || ""),
       verifier: pkce.verifier,
       createdAt: Date.now(),
     });
@@ -1787,8 +1846,8 @@ const httpServer = http.createServer((req, res) => {
           res,
           200,
           "Discord OAuth complete",
-          `<p>Your Sadgirlcoin account is now linked${resolvedName ? ` for <code>${htmlEscape(resolvedName)}</code>` : ""}.</p><p>Returning to the game automatically...</p>${resolvedName ? "" : "<p><strong>Note:</strong> The OAuth grant did not return Discord identity fields. Enable <code>identity:read</code> on the app and re-authorize to use your Discord username in-game.</p>"}<p><a href="#" onclick="try { if (window.opener && !window.opener.closed) { window.opener.focus(); } } catch (error) {} try { window.close(); } catch (error) {} return false;">Back to the game</a></p>`,
-          oauthReturnScript()
+          `<p>Your Sadgirlcoin account is now linked${resolvedName ? ` for <code>${htmlEscape(resolvedName)}</code>` : ""}.</p><p>Returning to the game automatically...</p>${resolvedName ? "" : "<p><strong>Note:</strong> The OAuth grant did not return Discord identity fields. Enable <code>identity:read</code> on the app and re-authorize to use your Discord username in-game.</p>"}${pending.returnTo ? `<p><a href="${htmlEscape(pending.returnTo)}">Back to the game</a></p>` : ""}`,
+          buildOauthReturnScript(pending.returnTo)
         );
       })
       .catch((error) => {
