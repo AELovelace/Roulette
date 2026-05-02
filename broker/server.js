@@ -1,7 +1,10 @@
 const WebSocket = require("ws");
+const http = require("http");
+const crypto = require("crypto");
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;
 const HOST = process.env.HOST || "0.0.0.0";
+const SGC_WEBHOOK_SECRET = process.env.SGC_WEBHOOK_SECRET || "";
 const wheelOrder = [
   0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23,
   10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
@@ -1201,7 +1204,52 @@ function startSpin(requestingPlayer) {
   }, durationMs);
 }
 
-const wss = new WebSocket.Server({ host: HOST, port: PORT });
+// HTTP server for webhooks + WebSocket upgrade
+const httpServer = http.createServer((req, res) => {
+  if (req.method === "POST" && req.url === "/sgc/webhook") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk.toString("utf8");
+    });
+    req.on("end", () => {
+      // Verify signature
+      const signature = req.headers["x-sgc-signature"] || "";
+      const expected = "sha256=" + crypto
+        .createHmac("sha256", SGC_WEBHOOK_SECRET)
+        .update(body, "utf8")
+        .digest("hex");
+
+      if (signature !== expected) {
+        console.warn(`[webhook] signature mismatch: ${signature.slice(0, 16)}... vs ${expected.slice(0, 16)}...`);
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "unauthorized" }));
+        return;
+      }
+
+      try {
+        const event = JSON.parse(body);
+        console.log(`[webhook] received ${event.event || "unknown"} from SGC`);
+        
+        // Parse event and update local state if needed
+        // For now, just acknowledge; full reconciliation logic goes here
+        
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (err) {
+        console.error(`[webhook] parse error: ${err.message}`);
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_json" }));
+      }
+    });
+    return;
+  }
+
+  // Default 404
+  res.writeHead(404);
+  res.end("not found");
+});
+
+const wss = new WebSocket.Server({ server: httpServer });
 
 wss.on("connection", (socket) => {
   const player = {
@@ -1477,4 +1525,10 @@ wss.on("connection", (socket) => {
   });
 });
 
-console.log(`Roulette broker listening on ws://${HOST}:${PORT}`);
+httpServer.listen(PORT, HOST, () => {
+  console.log(`[broker] listening on ws://${HOST}:${PORT}`);
+  console.log(`[broker] webhook endpoint: http://${HOST}:${PORT}/sgc/webhook`);
+  if (!SGC_WEBHOOK_SECRET) {
+    console.warn(`[broker] WARNING: SGC_WEBHOOK_SECRET not set; webhook signatures will not validate`);
+  }
+});
