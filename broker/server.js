@@ -142,7 +142,6 @@ function buildOauthReturnScript(returnUrl) {
   const returnUrl = ${returnUrlLiteral};
 
   const sendBackToGame = () => {
-    let bouncedToOpener = false;
     try {
       if (window.opener && !window.opener.closed) {
         try {
@@ -150,7 +149,6 @@ function buildOauthReturnScript(returnUrl) {
         } catch (error) {}
         try {
           window.opener.focus();
-          bouncedToOpener = true;
         } catch (error) {}
         setTimeout(() => {
           try {
@@ -159,16 +157,6 @@ function buildOauthReturnScript(returnUrl) {
         }, 150);
       }
     } catch (error) {}
-
-    if (!bouncedToOpener && returnUrl) {
-      setTimeout(() => {
-        try {
-          window.location.replace(returnUrl);
-        } catch (error) {
-          window.location.href = returnUrl;
-        }
-      }, 400);
-    }
   };
 
   window.addEventListener("load", () => {
@@ -1847,7 +1835,7 @@ const httpServer = http.createServer((req, res) => {
           res,
           200,
           "Discord OAuth complete",
-          `<p>Your Sadgirlcoin account is now linked${resolvedName ? ` for <code>${htmlEscape(resolvedName)}</code>` : ""}.</p><p>Returning to the game automatically...</p>${resolvedName ? "" : "<p><strong>Note:</strong> The OAuth grant did not return Discord identity fields. Enable <code>identity:read</code> on the app and re-authorize to use your Discord username in-game.</p>"}${pending.returnTo ? `<p><a href="${htmlEscape(pending.returnTo)}">Back to the game</a></p>` : ""}`,
+          `<p>Your Sadgirlcoin account is now linked${resolvedName ? ` for <code>${htmlEscape(resolvedName)}</code>` : ""}.</p><p>This window can close now. The original game tab will pick up the auth state automatically.</p>${resolvedName ? "" : "<p><strong>Note:</strong> The OAuth grant did not return Discord identity fields. Enable <code>identity:read</code> on the app and re-authorize to use your Discord username in-game.</p>"}${pending.returnTo ? `<p>If this window does not close on its own, close it and return to your original game tab.</p>` : ""}`,
           buildOauthReturnScript(pending.returnTo)
         );
       })

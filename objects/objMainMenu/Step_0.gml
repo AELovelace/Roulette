@@ -53,6 +53,8 @@ function menuQueueOauthStatusPoll(_delayFrames) {
 }
 
 function menuOauthReturnUrl() {
+	var browserUrl = string_trim(sgc_browser_get_url());
+	if (browserUrl != "") return browserUrl;
 	if (variable_global_exists("sgcReturnToUrl")) {
 		var candidate = string_trim(global.sgcReturnToUrl);
 		if (candidate != "") return candidate;
@@ -95,10 +97,12 @@ function menuStartDiscordOAuth() {
 	}
 	global.sgcOauthPending = true;
 	menuSaveSgcSession();
-	url_open_ext(oauthUrl, "_self");
+	var popupOpened = sgc_oauth_popup_open(oauthUrl);
 	oauthAwaitingBrowserLink = true;
 	menuQueueOauthStatusPoll(room_speed div 2);
-	statusText = "[SGC] opening OAuth sign-in...";
+	statusText = (popupOpened > 0)
+		? "[SGC] OAuth popup opened. Waiting for confirmation..."
+		: "[SGC] opening OAuth sign-in...";
 }
 
 function menuCancelSignIn() {

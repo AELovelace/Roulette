@@ -10,6 +10,7 @@
   },
   "defaultScriptType":0,
   "Folders":[
+    {"$GMFolder":"","%Name":"Extensions","folderPath":"folders/Extensions.yy","name":"Extensions","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"Objects","folderPath":"folders/Objects.yy","name":"Objects","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"Rooms","folderPath":"folders/Rooms.yy","name":"Rooms","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"Scripts","folderPath":"folders/Scripts.yy","name":"Scripts","resourceType":"GMFolder","resourceVersion":"2.0",},
@@ -24,6 +25,7 @@
   },
   "name":"Roulette",
   "resources":[
+    {"id":{"name":"SGCOAuthBridge","path":"extensions/SGCOAuthBridge/SGCOAuthBridge.yy",},},
     {"id":{"name":"objMainMenu","path":"objects/objMainMenu/objMainMenu.yy",},},
     {"id":{"name":"objTableGames","path":"objects/objTableGames/objTableGames.yy",},},
     {"id":{"name":"objTableLobby","path":"objects/objTableLobby/objTableLobby.yy",},},
