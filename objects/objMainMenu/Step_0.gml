@@ -98,15 +98,11 @@ function menuStartDiscordOAuth() {
 	global.sgcOauthPending = true;
 	menuSaveSgcSession();
 	var popupOpened = sgc_oauth_popup_open(oauthUrl);
-	oauthAwaitingBrowserLink = popupOpened > 0;
-	if (oauthAwaitingBrowserLink) {
-		menuQueueOauthStatusPoll(room_speed div 2);
-		statusText = "[SGC] OAuth popup opened. Waiting for confirmation...";
-	} else {
-		oauthPollRequestId = -1;
-		oauthPollCooldown = 0;
-		statusText = "[SGC] popup blocked. Allow popups for this page and try again.";
-	}
+	oauthAwaitingBrowserLink = true;
+	menuQueueOauthStatusPoll(room_speed div 2);
+	statusText = (popupOpened > 0)
+		? "[SGC] OAuth popup opened. Waiting for confirmation..."
+		: "[SGC] OAuth opened or was blocked. Waiting for confirmation...";
 }
 
 function menuCancelSignIn() {

@@ -92,6 +92,15 @@ function writeHtml(res, statusCode, title, bodyHtml, extraHtml = "") {
   res.end(page);
 }
 
+function corsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Accept",
+    "Access-Control-Max-Age": "600",
+  };
+}
+
 function oauthReturnScript() {
   return `<script>
 (() => {
@@ -1646,6 +1655,12 @@ const httpServer = http.createServer((req, res) => {
   const requestUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   const pathname = requestUrl.pathname;
 
+  if (req.method === "OPTIONS" && pathname === "/sgc/oauth/status") {
+    res.writeHead(204, corsHeaders());
+    res.end();
+    return;
+  }
+
   if (req.method === "GET" && pathname === "/sgc/oauth/start") {
     cleanupOauthPending();
     const publicOrigin = requestPublicOrigin(req, requestUrl);
@@ -1856,7 +1871,7 @@ const httpServer = http.createServer((req, res) => {
     const externalId = (requestUrl.searchParams.get("external_id") || "").trim();
     const linked = isOauthLinkedExternalId(externalId);
     const oauthRecord = linked ? oauthLinkedByExternalId.get(externalId) : null;
-    res.writeHead(200, { "Content-Type": "application/json" });
+    res.writeHead(200, { "Content-Type": "application/json", ...corsHeaders() });
     res.end(JSON.stringify({
       ok: true,
       linked,

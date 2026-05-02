@@ -1,1 +1,2 @@
-instance_create_layer(0, 0, "Instances", objMainMenu);
+// objMainMenu is already placed in RoomMenu.yy.
+// Do not create a second menu instance here; duplicate instances split OAuth polling state.
