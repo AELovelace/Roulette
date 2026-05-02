@@ -224,6 +224,71 @@ function logSignedInPayload(player, signedIn, externalId, displayName, source) {
   );
 }
 
+function clearSignedInDelivery(player) {
+  if (!player) return;
+  if (player.signedInRetryTimer) {
+    clearInterval(player.signedInRetryTimer);
+    player.signedInRetryTimer = null;
+  }
+  player.pendingSignedInPayload = null;
+  player.pendingSignedInSource = "";
+  player.signedInAcked = false;
+}
+
+function queueSignedInDelivery(player, signedIn, externalId, displayName, source) {
+  if (!player) return;
+
+  if (player.signedInRetryTimer) {
+    clearInterval(player.signedInRetryTimer);
+    player.signedInRetryTimer = null;
+  }
+
+  player.pendingSignedInPayload = {
+    type: "signed_in",
+    playerId: player.id,
+    signedIn: !!signedIn,
+    externalId: externalId || "",
+    displayName: displayName || "",
+  };
+  player.pendingSignedInSource = source || "push";
+  player.signedInAcked = false;
+
+  const sendAttempt = () => {
+    if (!player.socket || player.socket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    if (player.signedInAcked || !player.pendingSignedInPayload) {
+      if (player.signedInRetryTimer) {
+        clearInterval(player.signedInRetryTimer);
+        player.signedInRetryTimer = null;
+      }
+      return;
+    }
+
+    logSignedInPayload(
+      player,
+      player.pendingSignedInPayload.signedIn,
+      player.pendingSignedInPayload.externalId,
+      player.pendingSignedInPayload.displayName,
+      player.pendingSignedInSource
+    );
+    sendJson(player.socket, player.pendingSignedInPayload);
+  };
+
+  sendAttempt();
+  player.signedInRetryTimer = setInterval(sendAttempt, 1000);
+}
+
+function acknowledgeSignedInDelivery(player, source = "client") {
+  if (!player) return;
+  player.signedInAcked = true;
+  if (player.signedInRetryTimer) {
+    clearInterval(player.signedInRetryTimer);
+    player.signedInRetryTimer = null;
+  }
+  console.log(`[sgc][ack][${source}] player=${player.id} externalId=${player.sgcExternalId || "-"}`);
+}
+
 function hasSgcApiConfig() {
   return !!(SGC_BASE_URL && SGC_API_KEY);
 }
@@ -339,14 +404,7 @@ function markOauthLinked(externalId, displayName) {
 
       refreshPlayerBankrollFromSgc(player, "oauth_linked")
         .finally(() => {
-          logSignedInPayload(player, true, player.sgcExternalId, displayName || player.name, "oauth_linked");
-          sendJson(player.socket, {
-            type: "signed_in",
-            playerId: player.id,
-            signedIn: true,
-            externalId: player.sgcExternalId,
-            displayName: displayName || player.name,
-          });
+          queueSignedInDelivery(player, true, player.sgcExternalId, displayName || player.name, "oauth_linked");
           broadcastState();
           for (const game of tableGames) broadcastTableGame(game);
         });
@@ -1819,6 +1877,10 @@ wss.on("connection", (socket) => {
     sgcExternalId: "",
     sgcLinkCode: "",
     sgcSignedIn: false,
+    signedInAcked: false,
+    signedInRetryTimer: null,
+    pendingSignedInPayload: null,
+    pendingSignedInSource: "",
     socket,
   };
   state.players.set(player.id, player);
@@ -1839,7 +1901,13 @@ wss.on("connection", (socket) => {
       return;
     }
 
+    if (message.type === "signed_in_ack") {
+      acknowledgeSignedInDelivery(player, "client");
+      return;
+    }
+
     if (message.type === "join") {
+      acknowledgeSignedInDelivery(player, "join_reset");
       if (typeof message.name === "string" && message.name.trim()) {
         player.name = message.name.trim().slice(0, 24);
       }
@@ -1864,14 +1932,7 @@ wss.on("connection", (socket) => {
       console.log(
         `[sgc] join id=${player.id} name=${player.name} signed_in=${player.sgcSignedIn} external_id=${player.sgcExternalId || "-"} link_code=${player.sgcLinkCode ? "yes" : "no"} oauth=${oauthLinked ? "yes" : "no"}`
       );
-      sendJson(socket, {
-        type: "signed_in",
-        playerId: player.id,
-        signedIn: player.sgcSignedIn,
-        externalId: player.sgcExternalId || "",
-        displayName: player.name
-      });
-      logSignedInPayload(player, player.sgcSignedIn, player.sgcExternalId || "", player.name, "join");
+      queueSignedInDelivery(player, player.sgcSignedIn, player.sgcExternalId || "", player.name, "join");
       broadcastState();
       for (const game of tableGames) broadcastTableGame(game);
       return;
@@ -2082,6 +2143,7 @@ wss.on("connection", (socket) => {
   });
 
   socket.on("close", () => {
+    clearSignedInDelivery(player);
     const tableGame = tableLobby?.game;
     state.players.delete(player.id);
     broadcastState();

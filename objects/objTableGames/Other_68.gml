@@ -77,6 +77,9 @@ switch (eventType) {
 					ini_write_string("sgc", "link_code", variable_global_exists("sgcLinkCode") ? global.sgcLinkCode : "");
 					ini_write_string("sgc", "broker_http_base", variable_global_exists("sgcBrokerHttpBase") ? global.sgcBrokerHttpBase : "https://sadgirlsclub.wtf");
 					ini_close();
+					rouletteSendJson(tableBrokerSocket, {
+						type: "signed_in_ack"
+					});
 				}
 
 				if (messageKind == "table_state" && rouletteStructGet(message, "game", "") == tableGameKey) {
