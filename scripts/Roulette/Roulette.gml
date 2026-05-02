@@ -6,21 +6,77 @@
 function viewResize() {
 	var _ww, _wh;
 	if (os_browser != browser_not_a_browser) {
-		// HTML5: browser_width/height give the actual viewport; resize the canvas to match
+		// HTML5: resize the canvas element to fill the viewport exactly.
+		// CSS overflow:hidden (injected via jsprepend) prevents scrollbars.
 		_ww = max(100, browser_width);
 		_wh = max(100, browser_height);
-		window_set_size(_ww, _wh);
+		// Different browsers/runners can report different values; prefer the largest
+		// to avoid clipping to a stale or constrained dimension source.
+		_ww = max(_ww, window_get_width());
+		_wh = max(_wh, window_get_height());
+		_ww = max(_ww, display_get_width());
+		_wh = max(_wh, display_get_height());
+		if (window_get_width() != _ww || window_get_height() != _wh) {
+			window_set_size(_ww, _wh);
+		}
 	} else {
 		_ww = max(100, window_get_width());
 		_wh = max(100, window_get_height());
 	}
-	if (surface_get_width(application_surface) != _ww || surface_get_height(application_surface) != _wh) {
+	if (surface_exists(application_surface)
+		&& (surface_get_width(application_surface) != _ww || surface_get_height(application_surface) != _wh)) {
 		surface_resize(application_surface, _ww, _wh);
 		display_set_gui_size(_ww, _wh);
-		// Keep view 0 port in sync so the surface fills the window without clipping
-		camera_set_view_size(view_camera[0], _ww, _wh);
-		view_wport[0] = _ww;
-		view_hport[0] = _wh;
+	}
+	// Enable views and sync camera + port so room-space Draw events
+	// use the same coordinate space as the resized surface.
+	view_enabled = true;
+	view_visible[0] = true;
+	camera_set_view_pos(view_camera[0], 0, 0);
+	camera_set_view_size(view_camera[0], _ww, _wh);
+	view_xport[0] = 0;
+	view_yport[0] = 0;
+	view_wport[0] = _ww;
+	view_hport[0] = _wh;
+	display_set_gui_size(_ww, _wh);
+}
+
+function rouletteGetSfxVolume() {
+	if (!variable_global_exists("sgcSfxVolume")) {
+		global.sgcSfxVolume = 0.7;
+	}
+	return clamp(real(global.sgcSfxVolume), 0, 1);
+}
+
+function rouletteSetSfxVolume(_volume) {
+	global.sgcSfxVolume = clamp(real(_volume), 0, 1);
+}
+
+function rouletteEnsureTurnDingSound() {
+	if (!variable_global_exists("sgcTurnDingSoundId")) {
+		global.sgcTurnDingSoundId = -1;
+	}
+	if (global.sgcTurnDingSoundId != -1) {
+		return global.sgcTurnDingSoundId;
+	}
+
+	var _soundId = -1;
+	if (file_exists("sounds/ding/ding.wav")) {
+		_soundId = audio_create_stream("sounds/ding/ding.wav");
+	} else if (file_exists("ding.wav")) {
+		_soundId = audio_create_stream("ding.wav");
+	}
+
+	global.sgcTurnDingSoundId = _soundId;
+	return global.sgcTurnDingSoundId;
+}
+
+function roulettePlayTurnDing() {
+	var _soundId = rouletteEnsureTurnDingSound();
+	if (_soundId == -1) return;
+	var _voice = audio_play_sound(_soundId, 0, false);
+	if (_voice != -1) {
+		audio_sound_gain(_voice, rouletteGetSfxVolume(), 0);
 	}
 }
 

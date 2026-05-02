@@ -3,6 +3,23 @@ var mouseXPos = device_mouse_x_to_gui(0);
 var mouseYPos = device_mouse_y_to_gui(0);
 hoveredControl = "";
 
+var volumeSlider = { x: VIEW_W - 236, y: VIEW_H - 56, w: 170, h: 14 };
+var volumeHitX1 = volumeSlider.x - 8;
+var volumeHitY1 = volumeSlider.y - 10;
+var volumeHitX2 = volumeSlider.x + volumeSlider.w + 8;
+var volumeHitY2 = volumeSlider.y + volumeSlider.h + 10;
+if (mouse_check_button_pressed(mb_left) && point_in_rectangle(mouseXPos, mouseYPos, volumeHitX1, volumeHitY1, volumeHitX2, volumeHitY2)) {
+	tableVolumeSliderDragging = true;
+}
+if (!mouse_check_button(mb_left)) {
+	tableVolumeSliderDragging = false;
+}
+if (tableVolumeSliderDragging) {
+	var sliderT = clamp((mouseXPos - volumeSlider.x) / volumeSlider.w, 0, 1);
+	rouletteSetSfxVolume(sliderT);
+	hoveredControl = "volume_slider";
+}
+
 var backButton = { x: VIEW_W - 326, y: 20, w: 128, h: 42, label: tableRoomLocked ? "Tables" : "Back" };
 var mainMenuButton = { x: VIEW_W - 178, y: 20, w: 148, h: 42, label: "Main Menu" };
 var spinButton = { x: 90, y: 636, w: 190, h: 56, label: "Spin" };

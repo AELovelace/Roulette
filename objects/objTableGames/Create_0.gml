@@ -82,6 +82,7 @@ tableCommunity = [];
 tablePhase = "waiting";
 tableTurnPlayerId = "";
 tableYouAreTurn = false;
+tableVolumeSliderDragging = false;
 tablePot = 0;
 tableMaxPlayers = 3;
 tableHostPlayerId = "";
@@ -310,6 +311,9 @@ function tableParticipantsFromJson(_value) {
 }
 
 function applyTableSnapshot(_message) {
+	var previousTurnPlayerId = tableTurnPlayerId;
+	var previousYouAreTurn = tableYouAreTurn;
+
 	tableCurrentLobbyId = rouletteStructGet(_message, "currentLobbyId", tableCurrentLobbyId);
 	tableCurrentLobbyName = rouletteStructGet(_message, "currentLobbyName", tableCurrentLobbyName);
 	tableLobbyList = rouletteStructGet(_message, "lobbies", []);
@@ -321,6 +325,9 @@ function applyTableSnapshot(_message) {
 	tablePhase = rouletteStructGet(_message, "phase", tablePhase);
 	tableTurnPlayerId = rouletteStructGet(_message, "turnPlayerId", "");
 	tableYouAreTurn = rouletteStructGet(_message, "youAreTurn", false);
+	if (tableTurnPlayerId != "" && (tableTurnPlayerId != previousTurnPlayerId || tableYouAreTurn != previousYouAreTurn)) {
+		roulettePlayTurnDing();
+	}
 	tablePot = rouletteStructGet(_message, "pot", tablePot);
 	tableMaxPlayers = rouletteStructGet(_message, "maxPlayers", tableMaxPlayers);
 	tableHostPlayerId = rouletteStructGet(_message, "hostPlayerId", tableHostPlayerId);

@@ -35,17 +35,20 @@ draw_text(backButton.x + backButton.w * 0.5, backButton.y + backButton.h * 0.5, 
 
 for (var i = 0; i < array_length(tableNames); i += 1) {
 	var button = lobbyButton(i);
+	var bx = button.x;
+	var by = button.y;
+	var bw = button.w;
 	var selected = selectedTable == i;
 	var hovered = hoveredButton == "table_" + string(i);
 	drawLobbyButton(button, selected, hovered);
 	draw_set_halign(fa_left);
 	draw_set_valign(fa_top);
 	draw_set_color(textColor);
-	draw_text(button.x + 26, button.y + 24, tableNames[i]);
+	draw_text(bx + 26, by + 24, tableNames[i]);
 	draw_set_color(mutedTextColor);
-	draw_text(button.x + 26, button.y + 62, tableDescriptions[i]);
+	draw_text(bx + 26, by + 62, tableDescriptions[i]);
 	draw_set_color(railColor);
-	draw_text(button.x + button.w - 96, button.y + 92, "ENTER");
+	draw_text(bx + bw - 96, by + 92, "ENTER");
 }
 
 draw_set_halign(fa_left);

@@ -14,6 +14,7 @@ if (!variable_global_exists("sgcBrokerHttpBase")) global.sgcBrokerHttpBase = "ht
 if (!variable_global_exists("sgcReturnToUrl")) global.sgcReturnToUrl = "";
 if (!variable_global_exists("sgcOauthPending")) global.sgcOauthPending = false;
 if (!variable_global_exists("sgcOauthSessionId")) global.sgcOauthSessionId = "";
+if (!variable_global_exists("sgcSfxVolume")) global.sgcSfxVolume = 0.7;
 if (!variable_global_exists("sgcSessionPath")) global.sgcSessionPath = "sgc_session.ini";
 
 if (file_exists(global.sgcSessionPath)) {
@@ -26,6 +27,7 @@ if (file_exists(global.sgcSessionPath)) {
 	global.sgcReturnToUrl = ini_read_string("sgc", "return_to_url", global.sgcReturnToUrl);
 	global.sgcOauthPending = ini_read_real("sgc", "oauth_pending", global.sgcOauthPending ? 1 : 0) == 1;
 	global.sgcOauthSessionId = ini_read_string("sgc", "oauth_session_id", global.sgcOauthSessionId);
+	global.sgcSfxVolume = clamp(ini_read_real("sgc", "sfx_volume", global.sgcSfxVolume), 0, 1);
 	ini_close();
 }
 

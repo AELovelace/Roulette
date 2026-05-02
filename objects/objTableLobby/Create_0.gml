@@ -29,8 +29,13 @@ function lobbyButton(_index) {
 	var cardH = 132;
 	var gapX = 34;
 	var gapY = 28;
-	var buttonX = 68 + (_index mod columns) * (cardW + gapX);
-	var buttonY = 180 + (_index div columns) * (cardH + gapY);
+	var rows = ceil(array_length(tableNames) / columns);
+	var gridW = columns * cardW + (columns - 1) * gapX;
+	var gridH = rows * cardH + (rows - 1) * gapY;
+	var originX = max(24, (VIEW_W - gridW) * 0.5);
+	var originY = max(140, (VIEW_H - gridH) * 0.5);
+	var buttonX = originX + (_index mod columns) * (cardW + gapX);
+	var buttonY = originY + (_index div columns) * (cardH + gapY);
 	return { x: buttonX, y: buttonY, w: cardW, h: cardH, label: tableNames[_index] };
 }
 

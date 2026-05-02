@@ -26,6 +26,27 @@ function drawChip(_x, _y, _amount, _selected) {
 	draw_text(_x, _y, string(_amount));
 }
 
+function drawVolumeSlider(_hovered) {
+	var slider = { x: VIEW_W - 236, y: VIEW_H - 56, w: 170, h: 14 };
+	var value = rouletteGetSfxVolume();
+	var knobX = slider.x + slider.w * value;
+
+	draw_set_halign(fa_left);
+	draw_set_valign(fa_middle);
+	draw_set_color(mutedTextColor);
+	draw_text(slider.x - 58, slider.y + 7, "VOL");
+
+	draw_set_color(make_color_rgb(23, 26, 35));
+	draw_roundrect(slider.x, slider.y, slider.x + slider.w, slider.y + slider.h, false);
+	draw_set_color(_hovered ? accentHoverColor : railColor);
+	draw_roundrect(slider.x, slider.y, slider.x + slider.w, slider.y + slider.h, true);
+
+	draw_set_color(_hovered ? accentHoverColor : accentColor);
+	draw_circle(knobX, slider.y + slider.h * 0.5, 8, false);
+	draw_set_color(textColor);
+	draw_circle(knobX, slider.y + slider.h * 0.5, 8, true);
+}
+
 function cardText(_card) {
 	return _card.rank + _card.suit;
 }
@@ -566,6 +587,7 @@ if (tableLobbyOpen) {
 	draw_set_halign(fa_right);
 	draw_set_color(mutedTextColor);
 	draw_text(VIEW_W - 24, VIEW_H - 26, "Esc: table lobby  |  Enter: join table");
+	drawVolumeSlider(hoveredControl == "volume_slider" || tableVolumeSliderDragging);
 	exit;
 }
 
@@ -612,3 +634,4 @@ draw_text(24, VIEW_H - 26, statusText);
 draw_set_halign(fa_right);
 draw_set_color(mutedTextColor);
 draw_text(VIEW_W - 24, VIEW_H - 26, tableRoomLocked ? "Esc: lobby  |  Space/Enter: common actions" : "Esc: menu  |  1-5: tables  |  Space/Enter: common actions");
+drawVolumeSlider(hoveredControl == "volume_slider" || tableVolumeSliderDragging);

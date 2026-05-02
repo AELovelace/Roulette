@@ -16,7 +16,7 @@
   "option_html5_icon":"${base_options_dir}/html5/fav.ico",
   "option_html5_index":"",
   "option_html5_interpolate_pixels":true,
-  "option_html5_jsprepend":"",
+  "option_html5_jsprepend":"(function(){var s=document.createElement('style');s.textContent='html,body{margin:0;padding:0;overflow:hidden;background:#000;}canvas{display:block;}';document.head.appendChild(s);})();",
   "option_html5_loadingbar":"",
   "option_html5_localrunalert":true,
   "option_html5_outputdebugtoconsole":true,

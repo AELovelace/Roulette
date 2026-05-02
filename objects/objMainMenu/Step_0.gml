@@ -48,6 +48,7 @@ function menuSaveSgcSession() {
 	ini_write_string("sgc", "return_to_url", variable_global_exists("sgcReturnToUrl") ? global.sgcReturnToUrl : "");
 	ini_write_real("sgc", "oauth_pending", variable_global_exists("sgcOauthPending") && global.sgcOauthPending ? 1 : 0);
 	ini_write_string("sgc", "oauth_session_id", variable_global_exists("sgcOauthSessionId") ? global.sgcOauthSessionId : "");
+	ini_write_real("sgc", "sfx_volume", rouletteGetSfxVolume());
 	ini_close();
 }
 
