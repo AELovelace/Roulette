@@ -17,6 +17,10 @@ function viewResize() {
 	if (surface_get_width(application_surface) != _ww || surface_get_height(application_surface) != _wh) {
 		surface_resize(application_surface, _ww, _wh);
 		display_set_gui_size(_ww, _wh);
+		// Keep view 0 port in sync so the surface fills the window without clipping
+		camera_set_view_size(view_camera[0], _ww, _wh);
+		view_wport[0] = _ww;
+		view_hport[0] = _wh;
 	}
 }
 
