@@ -13,6 +13,7 @@ if (!variable_global_exists("sgcLinkCode"))    global.sgcLinkCode    = "";
 if (!variable_global_exists("sgcBrokerHttpBase")) global.sgcBrokerHttpBase = "https://sadgirlsclub.wtf";
 if (!variable_global_exists("sgcReturnToUrl")) global.sgcReturnToUrl = "";
 if (!variable_global_exists("sgcOauthPending")) global.sgcOauthPending = false;
+if (!variable_global_exists("sgcOauthSessionId")) global.sgcOauthSessionId = "";
 if (!variable_global_exists("sgcSessionPath")) global.sgcSessionPath = "sgc_session.ini";
 
 if (file_exists(global.sgcSessionPath)) {
@@ -24,12 +25,18 @@ if (file_exists(global.sgcSessionPath)) {
 	global.sgcBrokerHttpBase = ini_read_string("sgc", "broker_http_base", global.sgcBrokerHttpBase);
 	global.sgcReturnToUrl = ini_read_string("sgc", "return_to_url", global.sgcReturnToUrl);
 	global.sgcOauthPending = ini_read_real("sgc", "oauth_pending", global.sgcOauthPending ? 1 : 0) == 1;
+	global.sgcOauthSessionId = ini_read_string("sgc", "oauth_session_id", global.sgcOauthSessionId);
 	ini_close();
+}
+
+if (string_pos("player_", string_lower(string_trim(global.sgcExternalId))) == 1) {
+	global.sgcExternalId = "";
+	global.sgcSignedIn = false;
 }
 
 oauthPollRequestId = -1;
 oauthPollCooldown = 0;
-oauthAwaitingBrowserLink = global.sgcOauthPending && string_trim(global.sgcExternalId) != "";
+oauthAwaitingBrowserLink = global.sgcOauthPending && string_trim(global.sgcOauthSessionId) != "";
 if (oauthAwaitingBrowserLink) {
 	signInOpen = true;
 	statusText = "[SGC] resuming OAuth sign-in...";
@@ -105,7 +112,7 @@ signInSignOutButton = {
 	y: signInPanel.y1 + 240,
 	w: (signInPanel.x2 - signInPanel.x1) - 80,
 	h: 64,
-	label: "Sign Out & Clear Local Session"
+	label: "Sign Out On This Device"
 };
 signInCancelButton = {
 	x: room_width * 0.5 - 100,

@@ -25,7 +25,19 @@ function menuSaveSgcSession() {
 	ini_write_string("sgc", "broker_http_base", global.sgcBrokerHttpBase);
 	ini_write_string("sgc", "return_to_url", variable_global_exists("sgcReturnToUrl") ? global.sgcReturnToUrl : "");
 	ini_write_real("sgc", "oauth_pending", variable_global_exists("sgcOauthPending") && global.sgcOauthPending ? 1 : 0);
+	ini_write_string("sgc", "oauth_session_id", variable_global_exists("sgcOauthSessionId") ? global.sgcOauthSessionId : "");
 	ini_close();
+}
+
+function menuMakeOauthSessionId() {
+	var timestamp = string(current_time);
+	var randomPart = string(irandom_range(100000, 999999));
+	return string_copy("oauth_" + timestamp + "_" + randomPart, 1, 64);
+}
+
+function menuHasImmutableExternalId() {
+	var externalId = string_lower(string_trim(global.sgcExternalId));
+	return string_pos("sgcusr_", externalId) == 1;
 }
 
 function menuSignOutSgc() {
@@ -35,14 +47,14 @@ function menuSignOutSgc() {
 	oauthPollCooldown = 0;
 	global.sgcSignedIn = false;
 	global.sgcDisplayName = "";
-	global.sgcExternalId = "";
 	global.sgcLinkCode = "";
 	global.sgcOauthPending = false;
-	if (file_exists(global.sgcSessionPath)) {
-		file_delete(global.sgcSessionPath);
-	}
+	global.sgcOauthSessionId = "";
+	menuSaveSgcSession();
 	signInOpen = false;
-	statusText = "[SGC] signed out. Local player session deleted.";
+	statusText = menuHasImmutableExternalId()
+		? "[SGC] signed out on this device. Your Roulette ID was kept for next time."
+		: "[SGC] signed out on this device.";
 }
 
 function menuExternalIdFromName(_name) {
@@ -82,24 +94,18 @@ function menuOauthReturnUrl() {
 function menuRequestOauthStatus() {
 	if (!oauthAwaitingBrowserLink) return;
 	if (oauthPollRequestId != -1) return;
-	if (string_trim(global.sgcExternalId) == "") return;
+	if (string_trim(global.sgcOauthSessionId) == "") return;
 
 	var baseUrl = variable_global_exists("sgcBrokerHttpBase") ? string_trim(global.sgcBrokerHttpBase) : "https://sadgirlsclub.wtf";
 	if (baseUrl == "") baseUrl = "https://sadgirlsclub.wtf";
-	var statusUrl = baseUrl + "/sgc/oauth/status?external_id=" + menuUrlComponent(global.sgcExternalId);
+	var statusUrl = baseUrl + "/sgc/oauth/status?session_id=" + menuUrlComponent(global.sgcOauthSessionId);
 	oauthPollRequestId = http_get(statusUrl);
 }
 
 
 
 function menuStartDiscordOAuth() {
-	// Generate a UUID-like external_id if not already set
-	if (global.sgcExternalId == "") {
-		var timestamp = current_time;
-		var random_part = string(irandom_range(100000, 999999));
-		global.sgcExternalId = "player_" + string(timestamp) + "_" + random_part;
-		menuSaveSgcSession();
-	}
+	global.sgcOauthSessionId = menuMakeOauthSessionId();
 
 	var baseUrl = variable_global_exists("sgcBrokerHttpBase") ? string_trim(global.sgcBrokerHttpBase) : "https://sadgirlsclub.wtf";
 	if (baseUrl == "") baseUrl = "https://sadgirlsclub.wtf";
@@ -107,8 +113,11 @@ function menuStartDiscordOAuth() {
 	var returnUrl = menuOauthReturnUrl();
 	if (string_trim(outboundName) == "") outboundName = "";
 	var oauthUrl = baseUrl
-		+ "/sgc/oauth/start?external_id=" + menuUrlComponent(global.sgcExternalId)
+		+ "/sgc/oauth/start?session_id=" + menuUrlComponent(global.sgcOauthSessionId)
 		+ "&external_name=" + menuUrlComponent(outboundName);
+	if (menuHasImmutableExternalId()) {
+		oauthUrl += "&external_id=" + menuUrlComponent(global.sgcExternalId);
+	}
 	if (returnUrl != "") {
 		oauthUrl += "&return_to=" + menuUrlComponent(returnUrl);
 	}
@@ -128,6 +137,7 @@ function menuCancelSignIn() {
 	oauthPollRequestId = -1;
 	oauthPollCooldown = 0;
 	global.sgcOauthPending = false;
+	global.sgcOauthSessionId = "";
 	menuSaveSgcSession();
 	statusText = "[SYS] sign-in cancelled.";
 }
@@ -175,7 +185,7 @@ if (signInOpen) {
 	}
 	else if (overSignOut && global.sgcSignedIn) {
 		hoveredButton = "signin_signout";
-		if (!oauthAwaitingBrowserLink) statusText = "Delete local player session and sign out";
+		if (!oauthAwaitingBrowserLink) statusText = "Sign out on this device but keep your Roulette ID";
 	}
 	else if (overCancel) {
 		hoveredButton = "signin_cancel";

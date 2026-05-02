@@ -1,6 +1,9 @@
 const WebSocket = require("ws");
 const http = require("http");
 const crypto = require("crypto");
+const path = require("path");
+
+const { IdentityStore } = require("./lib/identityStore");
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;
 const HOST = process.env.HOST || "0.0.0.0";
@@ -31,8 +34,11 @@ const state = {
 };
 
 const oauthPendingByState = new Map();
-const oauthLinkedByExternalId = new Map();
+const oauthCompletedBySessionId = new Map();
 const oauthPendingTtlMs = 10 * 60 * 1000;
+const identityStore = new IdentityStore({
+  filePath: path.join(process.cwd(), "data", "identity-store.json"),
+});
 
 function base64Url(bufferValue) {
   return bufferValue.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
@@ -51,6 +57,20 @@ function cleanupOauthPending() {
       oauthPendingByState.delete(stateKey);
     }
   }
+
+  for (const [sessionId, completed] of oauthCompletedBySessionId.entries()) {
+    if ((now - completed.linkedAt) > oauthPendingTtlMs) {
+      oauthCompletedBySessionId.delete(sessionId);
+    }
+  }
+}
+
+function isBrokerManagedExternalId(externalId) {
+  return /^sgcusr_[0-9a-f-]{36}$/i.test(String(externalId || "").trim());
+}
+
+function createImmutableExternalId() {
+  return identityStore.createImmutableAppId();
 }
 
 function htmlEscape(value) {
@@ -393,12 +413,16 @@ async function refreshPlayerBankrollFromSgc(player, reason = "sync") {
   }
 }
 
-function isOauthLinkedExternalId(externalId) {
-  const key = String(externalId || "").trim();
+function getCompletedOauthSession(sessionId) {
+  const key = String(sessionId || "").trim();
   if (!key) return false;
-  const record = oauthLinkedByExternalId.get(key);
-  if (!record) return false;
-  return (Date.now() - record.linkedAt) <= (24 * 60 * 60 * 1000);
+  const record = oauthCompletedBySessionId.get(key);
+  if (!record) return null;
+  if ((Date.now() - record.linkedAt) > oauthPendingTtlMs) {
+    oauthCompletedBySessionId.delete(key);
+    return null;
+  }
+  return record;
 }
 
 function resolveDisplayNameFromOauthPayload(payload, fallbackName) {
@@ -442,16 +466,18 @@ function resolveDisplayNameFromOauthPayload(payload, fallbackName) {
   return "";
 }
 
-function markOauthLinked(externalId, displayName) {
-  const key = String(externalId || "").trim();
-  if (!key) return;
-  oauthLinkedByExternalId.set(key, {
+function markOauthLinked(sessionId, externalId, displayName) {
+  const statusKey = String(sessionId || "").trim();
+  const externalKey = String(externalId || "").trim();
+  if (!statusKey || !externalKey) return;
+  oauthCompletedBySessionId.set(statusKey, {
     linkedAt: Date.now(),
+    externalId: externalKey,
     displayName: String(displayName || ""),
   });
 
   for (const player of state.players.values()) {
-    if (player.sgcExternalId === key) {
+    if (player.sgcExternalId === externalKey) {
       player.sgcSignedIn = true;
       if (displayName) {
         player.name = String(displayName).slice(0, 24);
@@ -1674,17 +1700,22 @@ const httpServer = http.createServer((req, res) => {
       return;
     }
 
-    const externalId = (requestUrl.searchParams.get("external_id") || "").trim().slice(0, 64);
+    const providedExternalId = (requestUrl.searchParams.get("external_id") || "").trim().slice(0, 64);
     const externalName = (requestUrl.searchParams.get("external_name") || "Player").trim().slice(0, 24);
-    if (!externalId) {
-      writeHtml(res, 400, "Missing identity", "<p>Missing required query parameter <code>external_id</code>.</p>");
+    const oauthSessionId = (requestUrl.searchParams.get("session_id") || "").trim().slice(0, 64);
+    if (!oauthSessionId) {
+      writeHtml(res, 400, "Missing identity", "<p>Missing required query parameter <code>session_id</code>.</p>");
       return;
     }
+
+    const externalId = isBrokerManagedExternalId(providedExternalId) ? providedExternalId : createImmutableExternalId();
+    identityStore.ensureAppId(externalId, externalName);
 
     const stateKey = base64Url(crypto.randomBytes(24));
     const pkce = buildPkcePair();
     const requestedReturnTo = requestUrl.searchParams.get("return_to") || req.headers.referer || "";
     oauthPendingByState.set(stateKey, {
+      oauthSessionId,
       externalId,
       externalName,
       returnTo: sanitizeReturnUrl(requestedReturnTo),
@@ -1838,19 +1869,42 @@ const httpServer = http.createServer((req, res) => {
           link_discord_name: parsed?.link?.discord_name,
         });
 
+        const discordId = String(parsed?.discord_id || parsed?.user?.discord_id || "").trim();
+        if (!discordId) {
+          writeHtml(
+            res,
+            502,
+            "OAuth sign-in failed",
+            "<p>Sadgirlcoin OAuth did not return a Discord account identifier.</p>"
+          );
+          return;
+        }
+
         var resolvedName = resolveDisplayNameFromOauthPayload(parsed, pending.externalName);
         if (!resolvedName) {
           console.warn(
             "[sgc][oauth] missing Discord username in token response; keeping existing in-game name. Check that the app record and grant both include identity:read."
           );
         }
+        try {
+          identityStore.bindDiscordId(discordId, pending.externalId, resolvedName);
+        } catch (error) {
+          console.error(`[sgc][oauth] identity bind failed: ${oauthErrorDetail(error)}`);
+          writeHtml(
+            res,
+            409,
+            "OAuth sign-in conflict",
+            "<p>This Discord account is already attached to a different Roulette identity. Sign in again from the original device session or clear the conflicting mapping manually.</p>"
+          );
+          return;
+        }
         console.log(`[sgc][oauth] resolved display name: ${resolvedName || "(unchanged)"}`);
-        markOauthLinked(pending.externalId, resolvedName);
+        markOauthLinked(pending.oauthSessionId, pending.externalId, resolvedName);
         writeHtml(
           res,
           200,
           "Discord OAuth complete",
-          `<p>Your Sadgirlcoin account is now linked${resolvedName ? ` for <code>${htmlEscape(resolvedName)}</code>` : ""}.</p><p>This window can close now. The original game tab will pick up the auth state automatically.</p>${resolvedName ? "" : "<p><strong>Note:</strong> The OAuth grant did not return Discord identity fields. Enable <code>identity:read</code> on the app and re-authorize to use your Discord username in-game.</p>"}${pending.returnTo ? `<p>If this window does not close on its own, close it and return to your original game tab.</p>` : ""}`,
+          `<p>Your Sadgirlcoin account is now linked${resolvedName ? ` for <code>${htmlEscape(resolvedName)}</code>` : ""}.</p><p>Your immutable Roulette ID is <code>${htmlEscape(pending.externalId)}</code>.</p><p>This window can close now. The original game tab will pick up the auth state automatically.</p>${resolvedName ? "" : "<p><strong>Note:</strong> The OAuth grant did not return Discord identity fields. Enable <code>identity:read</code> on the app and re-authorize to use your Discord username in-game.</p>"}${pending.returnTo ? `<p>If this window does not close on its own, close it and return to your original game tab.</p>` : ""}`,
           buildOauthReturnScript(pending.returnTo)
         );
       })
@@ -1868,14 +1922,16 @@ const httpServer = http.createServer((req, res) => {
   }
 
   if (req.method === "GET" && pathname === "/sgc/oauth/status") {
-    const externalId = (requestUrl.searchParams.get("external_id") || "").trim();
-    const linked = isOauthLinkedExternalId(externalId);
-    const oauthRecord = linked ? oauthLinkedByExternalId.get(externalId) : null;
+    cleanupOauthPending();
+    const sessionId = (requestUrl.searchParams.get("session_id") || "").trim();
+    const oauthRecord = getCompletedOauthSession(sessionId);
+    const linked = !!oauthRecord;
     res.writeHead(200, { "Content-Type": "application/json", ...corsHeaders() });
     res.end(JSON.stringify({
       ok: true,
       linked,
-      external_id: externalId,
+      session_id: sessionId,
+      external_id: oauthRecord?.externalId || "",
       display_name: oauthRecord?.displayName || "",
       linked_at: oauthRecord?.linkedAt || null,
     }));
@@ -1972,14 +2028,13 @@ wss.on("connection", (socket) => {
     if (message.type === "sign_out") {
       acknowledgeSignedInDelivery(player, "sign_out_reset");
       player.sgcSignedIn = false;
-      player.sgcExternalId = "";
       player.sgcLinkCode = "";
       player.name = (typeof message.name === "string" && message.name.trim())
         ? message.name.trim().slice(0, 24)
         : "Player";
       player.bankroll = DEFAULT_BANKROLL;
       console.log(`[sgc] sign_out id=${player.id} name=${player.name}`);
-      queueSignedInDelivery(player, false, "", "", "sign_out");
+      queueSignedInDelivery(player, false, player.sgcExternalId || "", "", "sign_out");
       broadcastState();
       for (const game of tableGames) broadcastTableGame(game);
       return;
@@ -1996,11 +2051,12 @@ wss.on("connection", (socket) => {
       if (typeof message.link_code === "string") {
         player.sgcLinkCode = message.link_code.trim().slice(0, 16);
       }
-      const oauthLinked = isOauthLinkedExternalId(player.sgcExternalId);
-      const oauthRecord = oauthLinked ? oauthLinkedByExternalId.get(player.sgcExternalId) : null;
-      player.sgcSignedIn = (!!message.signed_in && !!player.sgcExternalId) || oauthLinked;
-      if (oauthRecord?.displayName) {
-        player.name = oauthRecord.displayName.slice(0, 24);
+      const knownIdentity = isBrokerManagedExternalId(player.sgcExternalId)
+        ? identityStore.getByAppId(player.sgcExternalId)
+        : null;
+      player.sgcSignedIn = !!message.signed_in && !!knownIdentity;
+      if (knownIdentity?.displayName) {
+        player.name = knownIdentity.displayName.slice(0, 24);
       }
       if (!player.sgcSignedIn) {
         player.bankroll = DEFAULT_BANKROLL;
@@ -2009,7 +2065,7 @@ wss.on("connection", (socket) => {
         await refreshPlayerBankrollFromSgc(player, "join");
       }
       console.log(
-        `[sgc] join id=${player.id} name=${player.name} signed_in=${player.sgcSignedIn} external_id=${player.sgcExternalId || "-"} link_code=${player.sgcLinkCode ? "yes" : "no"} oauth=${oauthLinked ? "yes" : "no"}`
+        `[sgc] join id=${player.id} name=${player.name} signed_in=${player.sgcSignedIn} external_id=${player.sgcExternalId || "-"} link_code=${player.sgcLinkCode ? "yes" : "no"} known_identity=${knownIdentity ? "yes" : "no"}`
       );
       queueSignedInDelivery(player, player.sgcSignedIn, player.sgcExternalId || "", player.name, "join");
       broadcastState();
@@ -2233,7 +2289,7 @@ wss.on("connection", (socket) => {
 httpServer.listen(PORT, HOST, () => {
   console.log(`[broker] listening on ws://${HOST}:${PORT}`);
   console.log(`[broker] webhook endpoint: http://${HOST}:${PORT}/sgc/webhook`);
-  console.log(`[broker] oauth start endpoint: http://${HOST}:${PORT}/sgc/oauth/start?external_id=...&external_name=...`);
+  console.log(`[broker] oauth start endpoint: http://${HOST}:${PORT}/sgc/oauth/start?session_id=...&external_id=...&external_name=...`);
   if (hasOauthConfig()) {
     console.log(`[broker] oauth upstream: ${SGC_BASE_URL}`);
     console.log(`[broker] oauth redirect_uri: ${SGC_OAUTH_REDIRECT_URI}`);

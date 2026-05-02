@@ -32,11 +32,12 @@ if (rouletteStructGet(parsed, "linked", false)) {
 		global.sgcDisplayName = linkedDisplayName;
 	}
 	global.sgcOauthPending = false;
+	global.sgcOauthSessionId = "";
 	menuSaveSgcSession();
 	oauthAwaitingBrowserLink = false;
 	signInOpen = false;
 	statusText = (global.sgcDisplayName != "")
-		? ("[SGC] linked as " + global.sgcDisplayName + ".")
+		? ("[SGC] signed in as " + global.sgcDisplayName + ".")
 		: "[SGC] account linked. Discord name will appear after identity:read is enabled.";
 	exit;
 }
