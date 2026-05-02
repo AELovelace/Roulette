@@ -113,11 +113,13 @@ if (signInOpen) {
 	for (var i = 0; i < array_length(signInFields); i++) {
 		var rowY = signInFirstRowY + i * signInRowHeight;
 		var field = signInFields[i];
-		var displayValue = (i == signInActiveField) ? keyboard_string : field.value;
+		var fieldValue = (is_struct(field) && variable_struct_exists(field, "value")) ? variable_struct_get(field, "value") : "";
+		var fieldLabel = (is_struct(field) && variable_struct_exists(field, "label")) ? variable_struct_get(field, "label") : "Field";
+		var displayValue = (i == signInActiveField) ? keyboard_string : fieldValue;
 		var isActive = (i == signInActiveField);
 
 		draw_set_color(lineColor);
-		draw_text(signInFieldX, rowY, field.label);
+		draw_text(signInFieldX, rowY, fieldLabel);
 
 		var fieldFill = isActive ? make_color_rgb(48, 26, 56) : make_color_rgb(28, 18, 36);
 		draw_set_color(fieldFill);

@@ -62,9 +62,9 @@ settingsPanel = {
 // Sign In modal layout.
 signInPanel = {
 	x1: room_width * 0.5 - 320,
-	y1: 140,
+	y1: 80,
 	x2: room_width * 0.5 + 320,
-	y2: room_height - 140
+	y2: room_height - 80
 };
 
 signInFields = [
@@ -76,25 +76,25 @@ signInActiveField = 0;
 signInRowHeight = 78;
 signInFieldX = signInPanel.x1 + 40;
 signInFieldW = (signInPanel.x2 - signInPanel.x1) - 80;
-signInFirstRowY = signInPanel.y1 + 130;
+signInFirstRowY = signInPanel.y1 + 112;
 
 signInConfirmButton = {
 	x: room_width * 0.5 - 220,
-	y: signInPanel.y2 - 90,
+	y: signInPanel.y2 - 84,
 	w: 200,
 	h: 56,
 	label: "Confirm"
 };
 signInOAuthButton = {
 	x: room_width * 0.5 - 220,
-	y: signInPanel.y2 - 162,
+	y: signInPanel.y2 - 156,
 	w: 440,
 	h: 52,
 	label: "Continue with Discord OAuth"
 };
 signInCancelButton = {
 	x: room_width * 0.5 + 20,
-	y: signInPanel.y2 - 90,
+	y: signInPanel.y2 - 84,
 	w: 200,
 	h: 56,
 	label: "Cancel"

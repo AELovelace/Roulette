@@ -15,23 +15,38 @@ function menuUrlComponent(_value) {
 	return out;
 }
 
+function menuSignInFieldGet(_index, _name, _default) {
+	var item = signInFields[_index];
+	if (is_struct(item) && variable_struct_exists(item, _name)) {
+		return variable_struct_get(item, _name);
+	}
+	return _default;
+}
+
+function menuSignInFieldSet(_index, _name, _value) {
+	var item = signInFields[_index];
+	if (is_struct(item)) {
+		variable_struct_set(item, _name, _value);
+	}
+}
+
 function menuOpenSignIn() {
 	signInOpen = true;
 	signInActiveField = 0;
-	signInFields[0].value = global.sgcDisplayName;
-	signInFields[1].value = global.sgcExternalId;
-	signInFields[2].value = global.sgcLinkCode;
-	keyboard_string = signInFields[signInActiveField].value;
+	menuSignInFieldSet(0, "value", global.sgcDisplayName);
+	menuSignInFieldSet(1, "value", global.sgcExternalId);
+	menuSignInFieldSet(2, "value", global.sgcLinkCode);
+	keyboard_string = menuSignInFieldGet(signInActiveField, "value", "");
 	statusText = "[SYS] enter your Sadgirlcoin identity.";
 }
 
 function menuConfirmSignIn() {
 	// Pull whatever is currently typed in the focused field.
-	signInFields[signInActiveField].value = keyboard_string;
+	menuSignInFieldSet(signInActiveField, "value", keyboard_string);
 
-	var newName     = string_trim(signInFields[0].value);
-	var newExternal = string_trim(signInFields[1].value);
-	var newCode     = string_trim(signInFields[2].value);
+	var newName     = string_trim(menuSignInFieldGet(0, "value", ""));
+	var newExternal = string_trim(menuSignInFieldGet(1, "value", ""));
+	var newCode     = string_trim(menuSignInFieldGet(2, "value", ""));
 
 	if (newName == "") newName = "Player " + string(irandom_range(1000, 9999));
 
@@ -55,10 +70,10 @@ function menuConfirmSignIn() {
 
 function menuStartDiscordOAuth() {
 	// Capture currently edited field before launching browser flow.
-	signInFields[signInActiveField].value = keyboard_string;
+	menuSignInFieldSet(signInActiveField, "value", keyboard_string);
 
-	var newName     = string_trim(signInFields[0].value);
-	var newExternal = string_trim(signInFields[1].value);
+	var newName     = string_trim(menuSignInFieldGet(0, "value", ""));
+	var newExternal = string_trim(menuSignInFieldGet(1, "value", ""));
 
 	if (newName == "") newName = "Player " + string(irandom_range(1000, 9999));
 	if (newExternal == "") {
@@ -67,8 +82,8 @@ function menuStartDiscordOAuth() {
 
 	global.sgcDisplayName = string_copy(newName,     1, min(string_length(newName),     24));
 	global.sgcExternalId  = string_copy(newExternal, 1, min(string_length(newExternal), 64));
-	signInFields[0].value = global.sgcDisplayName;
-	signInFields[1].value = global.sgcExternalId;
+	menuSignInFieldSet(0, "value", global.sgcDisplayName);
+	menuSignInFieldSet(1, "value", global.sgcExternalId);
 
 	var baseUrl = variable_global_exists("sgcBrokerHttpBase") ? string_trim(global.sgcBrokerHttpBase) : "https://sadgirlsclub.wtf";
 	if (baseUrl == "") baseUrl = "https://sadgirlsclub.wtf";
@@ -96,18 +111,18 @@ function menuActivateSelection() {
 
 if (signInOpen) {
 	if (keyboard_check_pressed(vk_tab)) {
-		signInFields[signInActiveField].value = keyboard_string;
+		menuSignInFieldSet(signInActiveField, "value", keyboard_string);
 		signInActiveField = (signInActiveField + 1) mod array_length(signInFields);
-		keyboard_string = signInFields[signInActiveField].value;
+		keyboard_string = menuSignInFieldGet(signInActiveField, "value", "");
 	}
 
 	for (var i = 0; i < array_length(signInFields); i++) {
 		var rowY = signInFirstRowY + i * signInRowHeight;
 		if (point_in_rectangle(mouseXPos, mouseYPos, signInFieldX, rowY + 22, signInFieldX + signInFieldW, rowY + 64)) {
 			if (mouse_check_button_pressed(mb_left)) {
-				signInFields[signInActiveField].value = keyboard_string;
+				menuSignInFieldSet(signInActiveField, "value", keyboard_string);
 				signInActiveField = i;
-				keyboard_string = signInFields[signInActiveField].value;
+				keyboard_string = menuSignInFieldGet(signInActiveField, "value", "");
 			}
 		}
 	}
@@ -119,7 +134,7 @@ if (signInOpen) {
 	else if (overConfirm) hoveredButton = "signin_confirm";
 	else if (overCancel) hoveredButton = "signin_cancel";
 
-	var maxLen = signInFields[signInActiveField].max;
+	var maxLen = real(menuSignInFieldGet(signInActiveField, "max", 64));
 	if (string_length(keyboard_string) > maxLen) keyboard_string = string_copy(keyboard_string, 1, maxLen);
 
 	if (keyboard_check_pressed(ord("O"))) menuStartDiscordOAuth();

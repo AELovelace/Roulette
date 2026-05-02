@@ -12,6 +12,7 @@ const SGC_OAUTH_CLIENT_SECRET = process.env.SGC_OAUTH_CLIENT_SECRET || "";
 const SGC_OAUTH_REDIRECT_URI = process.env.SGC_OAUTH_REDIRECT_URI || "";
 const SGC_OAUTH_SCOPE = process.env.SGC_OAUTH_SCOPE || "balance:read coins:debit coins:credit";
 const SGC_PUBLIC_ORIGIN = (process.env.SGC_PUBLIC_ORIGIN || "").replace(/\/$/, "");
+const DEFAULT_BANKROLL = 1000;
 const wheelOrder = [
   0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23,
   10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
@@ -187,6 +188,55 @@ function oauthErrorDetail(error) {
   return top;
 }
 
+function hasSgcApiConfig() {
+  return !!(SGC_BASE_URL && SGC_API_KEY);
+}
+
+async function refreshPlayerBankrollFromSgc(player, reason = "sync") {
+  if (!player || !player.sgcSignedIn || !player.sgcExternalId || !hasSgcApiConfig()) {
+    return false;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(`${SGC_BASE_URL}/v1/users/${encodeURIComponent(player.sgcExternalId)}/balance`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${SGC_API_KEY}`,
+        Accept: "application/json",
+      },
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    let parsed = null;
+    if (text) {
+      try {
+        parsed = JSON.parse(text);
+      } catch (error) {
+        parsed = null;
+      }
+    }
+    if (!response.ok) {
+      console.warn(`[sgc] balance sync failed for ${player.id} (${reason}): status=${response.status}`);
+      return false;
+    }
+    const balance = Number(parsed?.balance);
+    if (!Number.isInteger(balance)) {
+      console.warn(`[sgc] balance sync invalid schema for ${player.id} (${reason})`);
+      return false;
+    }
+    player.bankroll = balance;
+    return true;
+  } catch (error) {
+    const detail = oauthErrorDetail(error);
+    console.warn(`[sgc] balance sync error for ${player.id} (${reason}): ${detail}`);
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function isOauthLinkedExternalId(externalId) {
   const key = String(externalId || "").trim();
   if (!key) return false;
@@ -206,16 +256,21 @@ function markOauthLinked(externalId, displayName) {
   for (const player of state.players.values()) {
     if (player.sgcExternalId === key) {
       player.sgcSignedIn = true;
-      sendJson(player.socket, {
-        type: "signed_in",
-        playerId: player.id,
-        signedIn: true,
-        externalId: player.sgcExternalId,
-        displayName: player.name,
-      });
+
+      refreshPlayerBankrollFromSgc(player, "oauth_linked")
+        .finally(() => {
+          sendJson(player.socket, {
+            type: "signed_in",
+            playerId: player.id,
+            signedIn: true,
+            externalId: player.sgcExternalId,
+            displayName: player.name,
+          });
+          broadcastState();
+          for (const game of tableGames) broadcastTableGame(game);
+        });
     }
   }
-  broadcastState();
 }
 
 const tableGames = new Set(["slots", "pachinko", "blackjack", "holdem", "horse"]);
@@ -1638,7 +1693,7 @@ wss.on("connection", (socket) => {
   const player = {
     id: `P${state.nextPlayerId++}`,
     name: "Player",
-    bankroll: 1000,
+    bankroll: DEFAULT_BANKROLL,
     bets: {},
     lastWager: 0,
     lastPayout: 0,
@@ -1654,7 +1709,7 @@ wss.on("connection", (socket) => {
   sendJson(socket, { type: "welcome", playerId: player.id });
   broadcastState();
 
-  socket.on("message", (raw) => {
+  socket.on("message", async (raw) => {
     let message;
     try {
       message = parseClientMessage(raw);
@@ -1679,6 +1734,12 @@ wss.on("connection", (socket) => {
       }
       const oauthLinked = isOauthLinkedExternalId(player.sgcExternalId);
       player.sgcSignedIn = (!!message.signed_in && !!player.sgcExternalId) || oauthLinked;
+      if (!player.sgcSignedIn) {
+        player.bankroll = DEFAULT_BANKROLL;
+      }
+      if (player.sgcSignedIn) {
+        await refreshPlayerBankrollFromSgc(player, "join");
+      }
       console.log(
         `[sgc] join id=${player.id} name=${player.name} signed_in=${player.sgcSignedIn} external_id=${player.sgcExternalId || "-"} link_code=${player.sgcLinkCode ? "yes" : "no"} oauth=${oauthLinked ? "yes" : "no"}`
       );
