@@ -17,9 +17,9 @@ tableDescriptions = [
 	"Single-zero wheel with synced multiplayer lobbies.",
 	"Three visible seats, live reel views.",
 	"Three visible seats, live drop boards.",
-	"Dealer blackjack with hit, stay, push, payout.",
-	"Heads-up Hold'em against a CPU caller.",
-	"Four-lane tickets with underdog bonus."
+	"Six-seat dealer blackjack with live turns.",
+	"Eight-seat Hold'em with shared pot and turns.",
+	"Twenty-seat races; host starts and all picks are visible."
 ];
 tableRooms = [Room1, RoomSlots, RoomPachinko, RoomBlackjack, RoomHoldem, RoomHorseRace];
 

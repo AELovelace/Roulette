@@ -25,20 +25,12 @@ playButton = {
 	y: buttonY,
 	w: buttonWidth,
 	h: buttonHeight,
-	label: "Play Roulette"
-};
-
-tableGamesButton = {
-	x: buttonX,
-	y: buttonY + buttonHeight + buttonGap,
-	w: buttonWidth,
-	h: buttonHeight,
 	label: "Table Games"
 };
 
 settingsButton = {
 	x: buttonX,
-	y: buttonY + (buttonHeight + buttonGap) * 2,
+	y: buttonY + buttonHeight + buttonGap,
 	w: buttonWidth,
 	h: buttonHeight,
 	label: "Settings"

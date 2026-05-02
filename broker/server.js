@@ -17,11 +17,13 @@ const state = {
   nextSpinId: 1,
 };
 
-const tableGames = new Set(["slots", "pachinko"]);
+const tableGames = new Set(["slots", "pachinko", "blackjack", "holdem", "horse"]);
 const slotSymbolCount = 6;
 const slotPoints = [1, 2, 3, 5, 7, 10];
 const pachinkoWidth = 10;
 const pachinkoRows = 9;
+const cardSuits = ["S", "H", "D", "C"];
+const cardRanks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
 
 function angleNorm(value) {
   return ((value % 360) + 360) % 360;
@@ -196,6 +198,12 @@ function createEmptyTableSeat(player) {
     path: [],
     visibleRows: 0,
     landedPeg: 0,
+    hand: [],
+    folded: false,
+    stayed: false,
+    acted: false,
+    horseChoice: 0,
+    raceBet: 0,
     timer: null,
   };
 }
@@ -208,9 +216,30 @@ function createTableLobby(game, name) {
     playerIds: [],
     seats: new Map(),
     lastEvent: "Waiting for players.",
+    deck: [],
+    dealerHand: [],
+    community: [],
+    phase: "waiting",
+    turnIndex: 0,
+    pot: 0,
+    currentBet: 0,
+    hostPlayerId: "",
+    horseState: "betting",
+    horsePositions: [0, 0, 0, 0],
+    horseWinner: -1,
+    horseUnderdog: -1,
+    horseWins: [0, 0, 0, 0],
+    horseTimer: null,
   };
   state.tableLobbies.set(lobby.id, lobby);
   return lobby;
+}
+
+function tableMaxPlayers(game) {
+  if (game === "slots" || game === "pachinko") return 3;
+  if (game === "blackjack") return 6;
+  if (game === "horse") return 20;
+  return 8;
 }
 
 function getTableLobbyForPlayer(player) {
@@ -239,21 +268,189 @@ function removePlayerFromTableLobby(player) {
   player.tableLobbyId = "";
   lobby.lastEvent = `${player.name} left ${lobby.name}.`;
 
+  if (lobby.hostPlayerId === player.id) {
+    lobby.hostPlayerId = lobby.playerIds.length > 0 ? lobby.playerIds[0] : "";
+    if (lobby.hostPlayerId) {
+      const host = state.players.get(lobby.hostPlayerId);
+      if (host) lobby.lastEvent = `${host.name} is now host of ${lobby.name}.`;
+    }
+  }
+
+  if ((lobby.game === "blackjack" || lobby.game === "holdem") && lobby.phase !== "waiting") {
+    advanceTableTurn(lobby);
+  }
+
   if (lobby.playerIds.length === 0) {
+    if (lobby.horseTimer) {
+      clearInterval(lobby.horseTimer);
+      lobby.horseTimer = null;
+    }
     state.tableLobbies.delete(lobby.id);
   }
 }
 
 function assignPlayerToTableLobby(player, lobby) {
   if (lobby.playerIds.includes(player.id)) return true;
-  if (lobby.playerIds.length >= 3) return false;
+  if (lobby.playerIds.length >= tableMaxPlayers(lobby.game)) return false;
 
   removePlayerFromTableLobby(player);
   player.tableLobbyId = lobby.id;
   lobby.playerIds.push(player.id);
   lobby.seats.set(player.id, createEmptyTableSeat(player));
+  if (!lobby.hostPlayerId) lobby.hostPlayerId = player.id;
   lobby.lastEvent = `${player.name} joined ${lobby.name}.`;
   return true;
+}
+
+function horseUnderdogIndex(horseWins) {
+  let best = 0;
+  for (let i = 1; i < horseWins.length; i += 1) {
+    if (horseWins[i] < horseWins[best]) best = i;
+  }
+  let tied = true;
+  for (let i = 1; i < horseWins.length; i += 1) {
+    if (horseWins[i] !== horseWins[0]) tied = false;
+  }
+  return tied ? -1 : best;
+}
+
+function freshDeck() {
+  const deck = [];
+  for (const suit of cardSuits) {
+    for (const rank of cardRanks) {
+      deck.push({ rank, suit });
+    }
+  }
+  for (let i = deck.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
+
+function drawCard(deck) {
+  return deck.pop();
+}
+
+function blackjackCardValue(card) {
+  if (!card) return 0;
+  if (card.rank === "A") return 11;
+  if (["J", "Q", "K"].includes(card.rank)) return 10;
+  return Number(card.rank);
+}
+
+function blackjackValue(hand) {
+  let total = 0;
+  let aces = 0;
+  for (const card of hand) {
+    total += blackjackCardValue(card);
+    if (card.rank === "A") aces += 1;
+  }
+  while (total > 21 && aces > 0) {
+    total -= 10;
+    aces -= 1;
+  }
+  return total;
+}
+
+function blackjackNatural(hand) {
+  return hand.length === 2 && blackjackValue(hand) === 21;
+}
+
+function rankPokerValue(card) {
+  if (card.rank === "A") return 14;
+  if (card.rank === "K") return 13;
+  if (card.rank === "Q") return 12;
+  if (card.rank === "J") return 11;
+  return Number(card.rank);
+}
+
+function pokerScore(cards) {
+  const counts = Array(15).fill(0);
+  const suits = new Map();
+  for (const card of cards) {
+    const value = rankPokerValue(card);
+    counts[value] += 1;
+    suits.set(card.suit, (suits.get(card.suit) || 0) + 1);
+  }
+  counts[1] = counts[14];
+  const flush = [...suits.values()].some((count) => count >= 5);
+  let straightHigh = 0;
+  let run = 0;
+  for (let value = 1; value <= 14; value += 1) {
+    if (counts[value] > 0) {
+      run += 1;
+      if (run >= 5) straightHigh = value;
+    } else {
+      run = 0;
+    }
+  }
+  let fours = 0;
+  let threes = 0;
+  let pairs = 0;
+  let high = 0;
+  for (let value = 14; value >= 2; value -= 1) {
+    if (counts[value] > 0 && high === 0) high = value;
+    if (counts[value] === 4 && fours === 0) fours = value;
+    if (counts[value] === 3 && threes === 0) threes = value;
+    if (counts[value] === 2) pairs += 1;
+  }
+  if (flush && straightHigh > 0) return 800000 + straightHigh;
+  if (fours > 0) return 700000 + fours;
+  if (threes > 0 && pairs > 0) return 600000 + threes;
+  if (flush) return 500000 + high;
+  if (straightHigh > 0) return 400000 + straightHigh;
+  if (threes > 0) return 300000 + threes;
+  if (pairs >= 2) return 200000 + high;
+  if (pairs === 1) return 100000 + high;
+  return high;
+}
+
+function pokerLabel(score) {
+  if (score >= 800000) return "straight flush";
+  if (score >= 700000) return "four of a kind";
+  if (score >= 600000) return "full house";
+  if (score >= 500000) return "flush";
+  if (score >= 400000) return "straight";
+  if (score >= 300000) return "three of a kind";
+  if (score >= 200000) return "two pair";
+  if (score >= 100000) return "one pair";
+  return "high card";
+}
+
+function activeSeatIds(lobby) {
+  return lobby.playerIds.filter((id) => {
+    const seat = lobby.seats.get(id);
+    return seat && !seat.folded && !seat.stayed && playerCanAct(lobby, seat);
+  });
+}
+
+function playerCanAct(lobby, seat) {
+  if (!seat) return false;
+  if (lobby.game === "blackjack") return seat.hand.length > 0 && !seat.stayed && blackjackValue(seat.hand) < 21;
+  if (lobby.game === "holdem") return seat.hand.length > 0 && !seat.folded && !seat.acted;
+  return false;
+}
+
+function currentTurnPlayerId(lobby) {
+  if (lobby.phase === "waiting" || lobby.phase === "done" || lobby.phase === "showdown") return "";
+  for (let offset = 0; offset < lobby.playerIds.length; offset += 1) {
+    const index = (lobby.turnIndex + offset) % lobby.playerIds.length;
+    const id = lobby.playerIds[index];
+    const seat = lobby.seats.get(id);
+    if (playerCanAct(lobby, seat)) {
+      lobby.turnIndex = index;
+      return id;
+    }
+  }
+  return "";
+}
+
+function advanceTableTurn(lobby) {
+  if (!lobby.playerIds.length) return;
+  lobby.turnIndex = (lobby.turnIndex + 1) % lobby.playerIds.length;
+  if (lobby.game === "blackjack" && !currentTurnPlayerId(lobby)) resolveTableBlackjack(lobby);
+  if (lobby.game === "holdem" && !currentTurnPlayerId(lobby)) advanceHoldemStreet(lobby);
 }
 
 function randomSlotSymbol() {
@@ -306,8 +503,8 @@ function buildTableLobbyList(game) {
       name: lobby.name,
       game: lobby.game,
       playerCount: lobby.playerIds.length,
-      maxPlayers: 3,
-      phase: lobby.playerIds.some((id) => lobby.seats.get(id)?.running) ? "playing" : "ready",
+      maxPlayers: tableMaxPlayers(game),
+      phase: lobby.phase !== "waiting" ? lobby.phase : (lobby.playerIds.some((id) => lobby.seats.get(id)?.running) ? "playing" : "ready"),
     }))
     .sort((left, right) => left.name.localeCompare(right.name));
 }
@@ -330,15 +527,51 @@ function buildTableSeats(lobby) {
       path: seat.path,
       visibleRows: seat.visibleRows,
       landedPeg: seat.landedPeg,
+      hand: seat.hand,
+      folded: seat.folded,
+      stayed: seat.stayed,
+      acted: seat.acted,
+      horseChoice: seat.horseChoice,
+      raceBet: seat.raceBet,
     };
   });
-  while (seats.length < 3) seats.push(null);
-  return seats.slice(0, 3);
+  while (seats.length < tableMaxPlayers(lobby.game)) seats.push(null);
+  return seats.slice(0, tableMaxPlayers(lobby.game));
+}
+
+function sanitizeCard(card) {
+  return card ? { rank: card.rank, suit: card.suit } : null;
+}
+
+function buildTableParticipants(lobby, forPlayer) {
+  if (!lobby) return [];
+  return lobby.playerIds.map((id) => {
+    const seat = lobby.seats.get(id);
+    const player = state.players.get(id);
+    if (!seat || !player) return null;
+    const showHand = lobby.game === "blackjack" || id === forPlayer.id || lobby.phase === "showdown" || lobby.phase === "done" || seat.folded;
+    return {
+      playerId: id,
+      name: player.name,
+      balance: player.bankroll,
+      bet: seat.bet,
+      status: seat.status,
+      folded: seat.folded,
+      stayed: seat.stayed,
+      acted: seat.acted,
+      isTurn: currentTurnPlayerId(lobby) === id,
+      hand: showHand ? seat.hand.map(sanitizeCard) : seat.hand.map(() => null),
+      total: lobby.game === "blackjack" && showHand ? blackjackValue(seat.hand) : 0,
+      isHost: lobby.hostPlayerId === id,
+      horseChoice: seat.horseChoice,
+    };
+  }).filter(Boolean);
 }
 
 function buildTableSnapshot(forPlayer, game) {
   const lobby = getTableLobbyForPlayer(forPlayer);
   const inRequestedGame = lobby && lobby.game === game;
+  const turnPlayerId = inRequestedGame ? currentTurnPlayerId(lobby) : "";
   return {
     type: "table_state",
     game,
@@ -347,10 +580,23 @@ function buildTableSnapshot(forPlayer, game) {
     currentLobbyId: inRequestedGame ? lobby.id : "",
     currentLobbyName: inRequestedGame ? lobby.name : "No lobby",
     playerCount: inRequestedGame ? lobby.playerIds.length : 0,
-    maxPlayers: 3,
+    maxPlayers: tableMaxPlayers(game),
     lastEvent: inRequestedGame ? lobby.lastEvent : "Join or create a lobby.",
     lobbies: buildTableLobbyList(game),
     seats: inRequestedGame ? buildTableSeats(lobby) : [null, null, null],
+    participants: inRequestedGame ? buildTableParticipants(lobby, forPlayer) : [],
+    phase: inRequestedGame ? lobby.phase : "waiting",
+    turnPlayerId,
+    youAreTurn: turnPlayerId === forPlayer.id,
+    dealerHand: inRequestedGame ? lobby.dealerHand.map((card, index) => (lobby.phase === "blackjack_turns" && index === 1 ? null : sanitizeCard(card))) : [],
+    community: inRequestedGame ? lobby.community.map(sanitizeCard) : [],
+    pot: inRequestedGame ? lobby.pot : 0,
+    hostPlayerId: inRequestedGame ? lobby.hostPlayerId : "",
+    horseState: inRequestedGame && lobby.game === "horse" ? lobby.horseState : "betting",
+    horsePositions: inRequestedGame && lobby.game === "horse" ? lobby.horsePositions : [0, 0, 0, 0],
+    horseWinner: inRequestedGame && lobby.game === "horse" ? lobby.horseWinner : -1,
+    horseUnderdog: inRequestedGame && lobby.game === "horse" ? lobby.horseUnderdog : -1,
+    horseWins: inRequestedGame && lobby.game === "horse" ? lobby.horseWins : [0, 0, 0, 0],
   };
 }
 
@@ -441,6 +687,336 @@ function startTablePachinkoDrop(player) {
   }, 180);
   lobby.lastEvent = `${player.name} dropped a pachinko ball.`;
   broadcastTableGame("pachinko");
+}
+
+function resetCardSeats(lobby) {
+  for (const id of lobby.playerIds) {
+    const seat = lobby.seats.get(id);
+    if (!seat) continue;
+    seat.hand = [];
+    seat.folded = false;
+    seat.stayed = false;
+    seat.acted = false;
+    seat.status = "Ready";
+  }
+}
+
+function startTableBlackjack(player) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "blackjack" || lobby.phase === "blackjack_turns") return;
+  const bet = Math.max(1, Number(lobby.seats.get(player.id)?.bet) || 1);
+  const participants = lobby.playerIds
+    .map((id) => state.players.get(id))
+    .filter((participant) => participant && participant.bankroll >= bet);
+  if (!participants.length) return;
+
+  resetCardSeats(lobby);
+  lobby.deck = freshDeck();
+  lobby.dealerHand = [drawCard(lobby.deck), drawCard(lobby.deck)];
+  lobby.community = [];
+  lobby.phase = "blackjack_turns";
+  lobby.turnIndex = 0;
+  lobby.pot = 0;
+  for (const participant of participants) {
+    const seat = lobby.seats.get(participant.id);
+    participant.bankroll -= bet;
+    seat.bet = bet;
+    seat.hand = [drawCard(lobby.deck), drawCard(lobby.deck)];
+    seat.status = blackjackNatural(seat.hand) ? "Blackjack" : "Hit or stay";
+    if (blackjackNatural(seat.hand)) seat.stayed = true;
+    lobby.pot += bet;
+  }
+  lobby.lastEvent = `${player.name} dealt blackjack for ${participants.length} player(s).`;
+  if (!currentTurnPlayerId(lobby)) resolveTableBlackjack(lobby);
+  broadcastTableGame("blackjack");
+}
+
+function resolveTableBlackjack(lobby) {
+  if (!lobby || lobby.game !== "blackjack") return;
+  while (blackjackValue(lobby.dealerHand) < 17) {
+    lobby.dealerHand.push(drawCard(lobby.deck));
+  }
+  const dealerTotal = blackjackValue(lobby.dealerHand);
+  for (const id of lobby.playerIds) {
+    const player = state.players.get(id);
+    const seat = lobby.seats.get(id);
+    if (!player || !seat || !seat.hand.length) continue;
+    const total = blackjackValue(seat.hand);
+    let payout = 0;
+    if (total > 21) seat.status = "Bust";
+    else if (blackjackNatural(seat.hand) && !blackjackNatural(lobby.dealerHand)) {
+      payout = Math.floor(seat.bet * 2.5);
+      seat.status = `Blackjack paid ${payout}`;
+    } else if (dealerTotal > 21 || total > dealerTotal) {
+      payout = seat.bet * 2;
+      seat.status = `Won ${payout}`;
+    } else if (total === dealerTotal) {
+      payout = seat.bet;
+      seat.status = "Push";
+    } else {
+      seat.status = "Dealer wins";
+    }
+    player.bankroll += payout;
+    seat.stayed = true;
+  }
+  lobby.phase = "done";
+  lobby.lastEvent = `Dealer stands on ${dealerTotal}.`;
+  broadcastTableGame("blackjack");
+}
+
+function tableBlackjackHit(player) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "blackjack" || lobby.phase !== "blackjack_turns") return;
+  if (currentTurnPlayerId(lobby) !== player.id) return;
+  const seat = lobby.seats.get(player.id);
+  seat.hand.push(drawCard(lobby.deck));
+  const total = blackjackValue(seat.hand);
+  if (total >= 21) {
+    seat.stayed = true;
+    seat.status = total > 21 ? "Bust" : "Standing on 21";
+    advanceTableTurn(lobby);
+  } else {
+    seat.status = `Hit to ${total}`;
+  }
+  lobby.lastEvent = `${player.name}: ${seat.status}.`;
+  broadcastTableGame("blackjack");
+}
+
+function tableBlackjackStay(player) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "blackjack" || lobby.phase !== "blackjack_turns") return;
+  if (currentTurnPlayerId(lobby) !== player.id) return;
+  const seat = lobby.seats.get(player.id);
+  seat.stayed = true;
+  seat.status = `Stayed on ${blackjackValue(seat.hand)}`;
+  lobby.lastEvent = `${player.name} stayed.`;
+  advanceTableTurn(lobby);
+  broadcastTableGame("blackjack");
+}
+
+function startTableHoldem(player) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "holdem" || !["waiting", "done", "showdown"].includes(lobby.phase)) return;
+  const bet = Math.max(1, Number(lobby.seats.get(player.id)?.bet) || 1);
+  const participants = lobby.playerIds
+    .map((id) => state.players.get(id))
+    .filter((participant) => participant && participant.bankroll >= bet);
+  if (participants.length < 2) {
+    lobby.lastEvent = "Hold'em needs at least two funded players.";
+    broadcastTableGame("holdem");
+    return;
+  }
+
+  resetCardSeats(lobby);
+  lobby.deck = freshDeck();
+  lobby.dealerHand = [];
+  lobby.community = [];
+  lobby.phase = "preflop";
+  lobby.turnIndex = 0;
+  lobby.pot = 0;
+  lobby.currentBet = bet;
+  for (const participant of participants) {
+    const seat = lobby.seats.get(participant.id);
+    participant.bankroll -= bet;
+    seat.bet = bet;
+    seat.hand = [drawCard(lobby.deck), drawCard(lobby.deck)];
+    seat.status = "In hand";
+    lobby.pot += bet;
+  }
+  lobby.lastEvent = `${player.name} dealt Hold'em for ${participants.length} players.`;
+  broadcastTableGame("holdem");
+}
+
+function resetHoldemActions(lobby) {
+  for (const id of lobby.playerIds) {
+    const seat = lobby.seats.get(id);
+    if (seat && seat.hand.length && !seat.folded) seat.acted = false;
+  }
+}
+
+function holdemLiveSeats(lobby) {
+  return lobby.playerIds.map((id) => lobby.seats.get(id)).filter((seat) => seat && seat.hand.length && !seat.folded);
+}
+
+function advanceHoldemStreet(lobby) {
+  const liveSeats = holdemLiveSeats(lobby);
+  if (liveSeats.length <= 1) {
+    resolveTableHoldem(lobby);
+    return;
+  }
+  if (lobby.phase === "preflop") {
+    lobby.community.push(drawCard(lobby.deck), drawCard(lobby.deck), drawCard(lobby.deck));
+    lobby.phase = "flop";
+  } else if (lobby.phase === "flop") {
+    lobby.community.push(drawCard(lobby.deck));
+    lobby.phase = "turn";
+  } else if (lobby.phase === "turn") {
+    lobby.community.push(drawCard(lobby.deck));
+    lobby.phase = "river";
+  } else if (lobby.phase === "river") {
+    resolveTableHoldem(lobby);
+    return;
+  }
+  resetHoldemActions(lobby);
+  lobby.turnIndex = 0;
+  lobby.lastEvent = `Hold'em phase: ${lobby.phase}.`;
+}
+
+function tableHoldemAction(player, action) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "holdem" || !["preflop", "flop", "turn", "river"].includes(lobby.phase)) return;
+  if (currentTurnPlayerId(lobby) !== player.id) return;
+  const seat = lobby.seats.get(player.id);
+  if (!seat || seat.folded) return;
+  if (action === "fold") {
+    seat.folded = true;
+    seat.acted = true;
+    seat.status = "Folded";
+  } else if (action === "raise") {
+    const raiseAmount = Math.min(5, player.bankroll);
+    if (raiseAmount > 0) {
+      player.bankroll -= raiseAmount;
+      lobby.pot += raiseAmount;
+      seat.bet += raiseAmount;
+      seat.status = `Raised ${raiseAmount}`;
+    } else {
+      seat.status = "Checked";
+    }
+    seat.acted = true;
+  } else {
+    seat.status = "Checked";
+    seat.acted = true;
+  }
+  lobby.lastEvent = `${player.name}: ${seat.status}.`;
+  advanceTableTurn(lobby);
+  broadcastTableGame("holdem");
+}
+
+function resolveTableHoldem(lobby) {
+  if (!lobby || lobby.game !== "holdem") return;
+  const liveIds = lobby.playerIds.filter((id) => {
+    const seat = lobby.seats.get(id);
+    return seat && seat.hand.length && !seat.folded;
+  });
+  let winners = liveIds;
+  let label = "uncontested";
+  if (liveIds.length > 1) {
+    let best = -1;
+    winners = [];
+    for (const id of liveIds) {
+      const seat = lobby.seats.get(id);
+      const score = pokerScore([...seat.hand, ...lobby.community]);
+      seat.status = pokerLabel(score);
+      if (score > best) {
+        best = score;
+        winners = [id];
+        label = seat.status;
+      } else if (score === best) {
+        winners.push(id);
+      }
+    }
+  }
+  const share = winners.length ? Math.floor(lobby.pot / winners.length) : 0;
+  for (const id of winners) {
+    const player = state.players.get(id);
+    const seat = lobby.seats.get(id);
+    if (!player || !seat) continue;
+    player.bankroll += share;
+    seat.status = `Won ${share} with ${label}`;
+  }
+  lobby.phase = "showdown";
+  lobby.lastEvent = `Showdown: ${winners.length} winner(s), pot ${lobby.pot}.`;
+  broadcastTableGame("holdem");
+}
+
+function tableSetHorseChoice(player, choice) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "horse" || lobby.horseState === "racing") return;
+  const seat = lobby.seats.get(player.id);
+  if (!seat) return;
+  seat.horseChoice = Math.max(0, Math.min(3, Number(choice) || 0));
+  seat.status = `Picked horse ${seat.horseChoice + 1}`;
+  lobby.lastEvent = `${player.name} picked horse ${seat.horseChoice + 1}.`;
+  broadcastTableGame("horse");
+}
+
+function startTableHorseRace(player) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "horse") return;
+  if (lobby.hostPlayerId !== player.id) {
+    lobby.lastEvent = `Only host ${state.players.get(lobby.hostPlayerId)?.name || ""} can start races.`;
+    sendTableSnapshot(player, "horse");
+    return;
+  }
+  if (lobby.horseState === "racing") return;
+
+  lobby.horsePositions = [0, 0, 0, 0];
+  lobby.horseWinner = -1;
+  lobby.horseUnderdog = horseUnderdogIndex(lobby.horseWins);
+  lobby.horseState = "racing";
+  lobby.phase = "racing";
+
+  let entrants = 0;
+  for (const id of lobby.playerIds) {
+    const seat = lobby.seats.get(id);
+    const participant = state.players.get(id);
+    if (!seat || !participant) continue;
+    const bet = Math.max(1, Number(seat.bet) || 1);
+    seat.raceBet = 0;
+    if (participant.bankroll >= bet) {
+      participant.bankroll -= bet;
+      seat.raceBet = bet;
+      entrants += 1;
+      seat.running = true;
+      seat.status = `Racing horse ${seat.horseChoice + 1} for ${bet}`;
+    } else {
+      seat.running = false;
+      seat.status = "Insufficient SGC";
+    }
+  }
+
+  if (entrants === 0) {
+    lobby.horseState = "betting";
+    lobby.phase = "ready";
+    lobby.lastEvent = "No entrants had enough chips for this race.";
+    broadcastTableGame("horse");
+    return;
+  }
+
+  lobby.lastEvent = `${player.name} started the race with ${entrants} entrant(s).`;
+  if (lobby.horseTimer) clearInterval(lobby.horseTimer);
+  lobby.horseTimer = setInterval(() => {
+    for (let horse = 0; horse < 4; horse += 1) {
+      const boost = (horse === lobby.horseUnderdog) ? 1 : 0;
+      lobby.horsePositions[horse] += (0.8 + Math.random() * 3.0) + boost;
+      if (lobby.horsePositions[horse] >= 100 && lobby.horseWinner < 0) {
+        lobby.horseWinner = horse;
+      }
+    }
+    if (lobby.horseWinner >= 0) {
+      clearInterval(lobby.horseTimer);
+      lobby.horseTimer = null;
+      lobby.horseWins[lobby.horseWinner] += 1;
+      lobby.horseState = "done";
+      lobby.phase = "done";
+      for (const id of lobby.playerIds) {
+        const seat = lobby.seats.get(id);
+        const participant = state.players.get(id);
+        if (!seat || !participant) continue;
+        let payout = 0;
+        if (seat.raceBet > 0 && seat.horseChoice === lobby.horseWinner) {
+          payout = seat.raceBet * ((lobby.horseWinner === lobby.horseUnderdog) ? 8 : 4);
+          participant.bankroll += payout;
+        }
+        seat.running = false;
+        seat.status = payout > 0 ? `Won ${payout} on horse ${lobby.horseWinner + 1}` : `Horse ${lobby.horseWinner + 1} won`;
+        seat.raceBet = 0;
+      }
+      lobby.lastEvent = `Horse ${lobby.horseWinner + 1} wins.`;
+    }
+    broadcastTableGame("horse");
+  }, 120);
+  broadcastTableGame("horse");
 }
 
 function assignPlayerToLobby(player, lobby) {
@@ -635,6 +1211,7 @@ wss.on("connection", (socket) => {
     lastWager: 0,
     lastPayout: 0,
     lobbyId: "",
+    tableLobbyId: "",
     socket,
   };
   state.players.set(player.id, player);
@@ -658,8 +1235,7 @@ wss.on("connection", (socket) => {
     if (message.type === "join" && typeof message.name === "string" && message.name.trim()) {
       player.name = message.name.trim().slice(0, 24);
       broadcastState();
-      broadcastTableGame("slots");
-      broadcastTableGame("pachinko");
+      for (const game of tableGames) broadcastTableGame(game);
       return;
     }
 
@@ -676,7 +1252,8 @@ wss.on("connection", (socket) => {
       }
 
       const lobbyCount = buildTableLobbyList(message.game).length + 1;
-      const gameLabel = message.game === "slots" ? "Slots" : "Pachinko";
+      const gameLabels = { slots: "Slots", pachinko: "Pachinko", blackjack: "Blackjack", holdem: "Hold'em", horse: "Horse Race" };
+      const gameLabel = gameLabels[message.game] || "Table";
       const lobbyName = (typeof message.name === "string" && message.name.trim())
         ? message.name.trim().slice(0, 24)
         : `${gameLabel} Lobby ${lobbyCount}`;
@@ -708,6 +1285,8 @@ wss.on("connection", (socket) => {
       if (tableLobby && tableLobby.game === message.game && !seat?.running) {
         removePlayerFromTableLobby(player);
         broadcastTableGame(message.game);
+      } else {
+        sendTableSnapshot(player, message.game);
       }
       return;
     }
@@ -743,6 +1322,41 @@ wss.on("connection", (socket) => {
 
     if (message.type === "table_drop") {
       startTablePachinkoDrop(player);
+      return;
+    }
+
+    if (message.type === "table_blackjack_deal") {
+      startTableBlackjack(player);
+      return;
+    }
+
+    if (message.type === "table_blackjack_hit") {
+      tableBlackjackHit(player);
+      return;
+    }
+
+    if (message.type === "table_blackjack_stay") {
+      tableBlackjackStay(player);
+      return;
+    }
+
+    if (message.type === "table_holdem_deal") {
+      startTableHoldem(player);
+      return;
+    }
+
+    if (message.type === "table_holdem_action") {
+      tableHoldemAction(player, typeof message.action === "string" ? message.action : "check");
+      return;
+    }
+
+    if (message.type === "table_set_horse") {
+      tableSetHorseChoice(player, message.horse);
+      return;
+    }
+
+    if (message.type === "table_horse_start") {
+      startTableHorseRace(player);
       return;
     }
 

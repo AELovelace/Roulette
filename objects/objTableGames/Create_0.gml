@@ -39,18 +39,21 @@ if (room == RoomPachinko) {
 
 if (room == RoomBlackjack) {
 	selectedGame = GAME_BLACKJACK;
+	tableGameKey = "blackjack";
 	tableRoomLocked = true;
 	tableLobbyOpen = true;
 }
 
 if (room == RoomHoldem) {
 	selectedGame = GAME_HOLDEM;
+	tableGameKey = "holdem";
 	tableRoomLocked = true;
 	tableLobbyOpen = true;
 }
 
 if (room == RoomHorseRace) {
 	selectedGame = GAME_HORSE;
+	tableGameKey = "horse";
 	tableRoomLocked = true;
 	tableLobbyOpen = true;
 }
@@ -59,7 +62,7 @@ betOptions = [1, 5, 10, 25];
 selectedBetIndex = 1;
 statusText = "Pick a table, set a bet, and play.";
 hoveredControl = "";
-tableMultiplayerEnabled = (tableGameKey == "slots" || tableGameKey == "pachinko");
+tableMultiplayerEnabled = (tableGameKey != "");
 tableBrokerHost = "ws://127.0.0.1";
 tableBrokerPort = 8080;
 tableBrokerSocket = -1;
@@ -73,6 +76,68 @@ tableLobbyList = [];
 tableSelectedLobbyId = "";
 tableLobbyBrowserOpen = tableMultiplayerEnabled;
 tableLastEvent = "Join or create a lobby.";
+tableParticipants = [];
+tableDealerHand = [];
+tableCommunity = [];
+tablePhase = "waiting";
+tableTurnPlayerId = "";
+tableYouAreTurn = false;
+tablePot = 0;
+tableMaxPlayers = 3;
+tableHostPlayerId = "";
+tableIsHost = false;
+tableHorseState = "betting";
+tableHorsePositions = [0, 0, 0, 0];
+tableHorseWinner = -1;
+tableHorseUnderdog = -1;
+tableHorseWins = [0, 0, 0, 0];
+
+function resetTableLobbyState(_message) {
+	tableCurrentLobbyId = "";
+	tableCurrentLobbyName = "No lobby";
+	tableLobbyOpen = true;
+	tableLobbyBrowserOpen = true;
+	tableLastEvent = _message;
+	statusText = _message;
+	if (tableGameKey == "slots") {
+		slotSeats = [createEmptySlotSeat(), createEmptySlotSeat(), createEmptySlotSeat()];
+	}
+	if (tableGameKey == "pachinko") {
+		pachinkoSeats = [createEmptyPachinkoSeat(), createEmptyPachinkoSeat(), createEmptyPachinkoSeat()];
+	}
+	tableParticipants = [];
+	tableDealerHand = [];
+	tableCommunity = [];
+	tablePhase = "waiting";
+	tableTurnPlayerId = "";
+	tableYouAreTurn = false;
+	tablePot = 0;
+	tableHostPlayerId = "";
+	tableIsHost = false;
+	tableHorseState = "betting";
+	tableHorsePositions = [0, 0, 0, 0];
+	tableHorseWinner = -1;
+	tableHorseUnderdog = -1;
+	tableHorseWins = [0, 0, 0, 0];
+}
+
+function leaveTableLobbyIfNeeded(_message) {
+	if (tableMultiplayerEnabled && tableBrokerConnected && tableBrokerSocket >= 0 && tableCurrentLobbyId != "") {
+		rouletteSendJson(tableBrokerSocket, { type: "table_leave_lobby", game: tableGameKey });
+	}
+	resetTableLobbyState(_message);
+}
+
+function closeTableBrokerSocket() {
+	if (tableBrokerSocket >= 0) {
+		if (tableBrokerConnected && tableCurrentLobbyId != "") {
+			rouletteSendJson(tableBrokerSocket, { type: "table_leave_lobby", game: tableGameKey });
+		}
+		network_destroy(tableBrokerSocket);
+		tableBrokerSocket = -1;
+		tableBrokerConnected = false;
+	}
+}
 
 slotNames = ["Cherry", "Bell", "Gem", "Seven", "Crown", "Moon"];
 slotColors = [make_color_rgb(224, 57, 69), make_color_rgb(237, 195, 74), make_color_rgb(67, 185, 202), make_color_rgb(229, 78, 104), make_color_rgb(191, 137, 45), make_color_rgb(161, 114, 211)];
@@ -167,15 +232,167 @@ function createSlotSeat(_name, _isHuman) {
 	return {
 		name: _name,
 		isHuman: _isHuman,
-		active: true,
-		balance: _isHuman ? balance : irandom_range(180, 720),
+		active: _name != "",
+		balance: _isHuman ? balance : 0,
 		bet: currentBet(),
 		grid: makeSlotGrid(),
 		finalGrid: makeSlotGrid(),
 		spinTimer: 0,
 		status: "Ready",
-		nextAutoTimer: irandom_range(80, 190)
+		playerId: ""
 	};
+}
+
+function createEmptySlotSeat() {
+	return createSlotSeat("", false);
+}
+
+function tableGridFromJson(_value) {
+	var grid = array_create(9, 0);
+	if (is_array(_value)) {
+		for (var gridIndex = 0; gridIndex < min(9, array_length(_value)); gridIndex += 1) {
+			grid[gridIndex] = real(_value[gridIndex]);
+		}
+	}
+	return grid;
+}
+
+function tablePathFromJson(_value) {
+	var path = [];
+	if (is_array(_value)) {
+		for (var pathIndex = 0; pathIndex < array_length(_value); pathIndex += 1) {
+			array_push(path, real(_value[pathIndex]));
+		}
+	}
+	return path;
+}
+
+function tableCardsFromJson(_value) {
+	var cards = [];
+	if (is_array(_value)) {
+		for (var cardIndex = 0; cardIndex < array_length(_value); cardIndex += 1) {
+			var cardData = _value[cardIndex];
+			if (is_struct(cardData)) {
+				array_push(cards, { rank: rouletteStructGet(cardData, "rank", "?"), suit: rouletteStructGet(cardData, "suit", "?") });
+			} else {
+				array_push(cards, undefined);
+			}
+		}
+	}
+	return cards;
+}
+
+function tableParticipantsFromJson(_value) {
+	var participants = [];
+	if (is_array(_value)) {
+		for (var participantIndex = 0; participantIndex < array_length(_value); participantIndex += 1) {
+			var participantData = _value[participantIndex];
+			if (is_struct(participantData)) {
+				array_push(participants, {
+					playerId: rouletteStructGet(participantData, "playerId", ""),
+					name: rouletteStructGet(participantData, "name", "Player"),
+					balance: rouletteStructGet(participantData, "balance", 0),
+					bet: rouletteStructGet(participantData, "bet", currentBet()),
+					status: rouletteStructGet(participantData, "status", "Ready"),
+					folded: rouletteStructGet(participantData, "folded", false),
+					stayed: rouletteStructGet(participantData, "stayed", false),
+					acted: rouletteStructGet(participantData, "acted", false),
+					isTurn: rouletteStructGet(participantData, "isTurn", false),
+					isHost: rouletteStructGet(participantData, "isHost", false),
+					horseChoice: rouletteStructGet(participantData, "horseChoice", 0),
+					total: rouletteStructGet(participantData, "total", 0),
+					hand: tableCardsFromJson(rouletteStructGet(participantData, "hand", []))
+				});
+			}
+		}
+	}
+	return participants;
+}
+
+function applyTableSnapshot(_message) {
+	tableCurrentLobbyId = rouletteStructGet(_message, "currentLobbyId", tableCurrentLobbyId);
+	tableCurrentLobbyName = rouletteStructGet(_message, "currentLobbyName", tableCurrentLobbyName);
+	tableLobbyList = rouletteStructGet(_message, "lobbies", []);
+	tableLastEvent = rouletteStructGet(_message, "lastEvent", tableLastEvent);
+	balance = rouletteStructGet(_message, "bankroll", balance);
+	tableParticipants = tableParticipantsFromJson(rouletteStructGet(_message, "participants", []));
+	tableDealerHand = tableCardsFromJson(rouletteStructGet(_message, "dealerHand", []));
+	tableCommunity = tableCardsFromJson(rouletteStructGet(_message, "community", []));
+	tablePhase = rouletteStructGet(_message, "phase", tablePhase);
+	tableTurnPlayerId = rouletteStructGet(_message, "turnPlayerId", "");
+	tableYouAreTurn = rouletteStructGet(_message, "youAreTurn", false);
+	tablePot = rouletteStructGet(_message, "pot", tablePot);
+	tableMaxPlayers = rouletteStructGet(_message, "maxPlayers", tableMaxPlayers);
+	tableHostPlayerId = rouletteStructGet(_message, "hostPlayerId", tableHostPlayerId);
+	tableIsHost = (tableHostPlayerId != "" && tableHostPlayerId == tablePlayerId);
+	tableHorseState = rouletteStructGet(_message, "horseState", tableHorseState);
+	tableHorsePositions = rouletteStructGet(_message, "horsePositions", tableHorsePositions);
+	tableHorseWinner = rouletteStructGet(_message, "horseWinner", tableHorseWinner);
+	tableHorseUnderdog = rouletteStructGet(_message, "horseUnderdog", tableHorseUnderdog);
+	tableHorseWins = rouletteStructGet(_message, "horseWins", tableHorseWins);
+	if (tableGameKey == "horse") {
+		for (var participantIndex = 0; participantIndex < array_length(tableParticipants); participantIndex += 1) {
+			var participant = tableParticipants[participantIndex];
+			if (rouletteStructGet(participant, "playerId", "") == tablePlayerId) {
+				horseChoice = rouletteStructGet(participant, "horseChoice", horseChoice);
+			}
+		}
+	}
+	var incomingSeats = rouletteStructGet(_message, "seats", []);
+	if (tableGameKey == "slots") {
+		slotSeats = [];
+		for (var slotSeatIndex = 0; slotSeatIndex < 3; slotSeatIndex += 1) {
+			var slotSeatData = (is_array(incomingSeats) && slotSeatIndex < array_length(incomingSeats)) ? incomingSeats[slotSeatIndex] : undefined;
+			if (is_struct(slotSeatData)) {
+				var slotSeat = createSlotSeat(rouletteStructGet(slotSeatData, "name", "Player"), rouletteStructGet(slotSeatData, "playerId", "") == tablePlayerId);
+				slotSeat.active = true;
+				slotSeat.playerId = rouletteStructGet(slotSeatData, "playerId", "");
+				slotSeat.balance = rouletteStructGet(slotSeatData, "balance", 0);
+				slotSeat.bet = rouletteStructGet(slotSeatData, "bet", currentBet());
+				slotSeat.status = rouletteStructGet(slotSeatData, "status", "Ready");
+				slotSeat.spinTimer = rouletteStructGet(slotSeatData, "running", false) ? 1 : 0;
+				slotSeat.grid = tableGridFromJson(rouletteStructGet(slotSeatData, "grid", []));
+				array_push(slotSeats, slotSeat);
+			} else {
+				array_push(slotSeats, createEmptySlotSeat());
+			}
+		}
+	}
+	if (tableGameKey == "pachinko") {
+		pachinkoSeats = [];
+		for (var pachinkoSeatIndex = 0; pachinkoSeatIndex < 3; pachinkoSeatIndex += 1) {
+			var pachinkoSeatData = (is_array(incomingSeats) && pachinkoSeatIndex < array_length(incomingSeats)) ? incomingSeats[pachinkoSeatIndex] : undefined;
+			if (is_struct(pachinkoSeatData)) {
+				var pachinkoSeat = createPachinkoSeat(rouletteStructGet(pachinkoSeatData, "name", "Player"), rouletteStructGet(pachinkoSeatData, "playerId", "") == tablePlayerId);
+				pachinkoSeat.active = true;
+				pachinkoSeat.playerId = rouletteStructGet(pachinkoSeatData, "playerId", "");
+				pachinkoSeat.balance = rouletteStructGet(pachinkoSeatData, "balance", 0);
+				pachinkoSeat.bet = rouletteStructGet(pachinkoSeatData, "bet", currentBet());
+				pachinkoSeat.guess = rouletteStructGet(pachinkoSeatData, "guess", 5);
+				pachinkoSeat.status = rouletteStructGet(pachinkoSeatData, "status", "Ready");
+				pachinkoSeat.running = rouletteStructGet(pachinkoSeatData, "running", false);
+				pachinkoSeat.path = tablePathFromJson(rouletteStructGet(pachinkoSeatData, "path", []));
+				pachinkoSeat.visibleRows = rouletteStructGet(pachinkoSeatData, "visibleRows", 0);
+				pachinkoSeat.landedPeg = rouletteStructGet(pachinkoSeatData, "landedPeg", 0);
+				array_push(pachinkoSeats, pachinkoSeat);
+			} else {
+				array_push(pachinkoSeats, createEmptyPachinkoSeat());
+			}
+		}
+	}
+	if (array_length(tableLobbyList) > 0) {
+		var foundSelectedLobby = false;
+		for (var lobbyIndex = 0; lobbyIndex < array_length(tableLobbyList); lobbyIndex += 1) {
+			if (rouletteStructGet(tableLobbyList[lobbyIndex], "id", "") == tableSelectedLobbyId) {
+				foundSelectedLobby = true;
+			}
+		}
+		if (!foundSelectedLobby) tableSelectedLobbyId = rouletteStructGet(tableLobbyList[0], "id", "");
+	} else {
+		tableSelectedLobbyId = "";
+	}
+	tableLobbyBrowserOpen = tableBrokerConnected && (tableCurrentLobbyId == "" || tableLobbyBrowserOpen);
+	if (tableCurrentLobbyId != "") tableLobbyBrowserOpen = false;
 }
 
 function slotLinePoints(_a, _b, _c) {
@@ -226,7 +443,6 @@ function startSlotSeat(_seatIndex) {
 	seat.finalGrid = makeSlotGrid();
 	seat.spinTimer = slotSpinDuration + (_seatIndex * 8);
 	seat.status = "Spinning for " + string(bet) + " SGC";
-	seat.nextAutoTimer = irandom_range(130, 260);
 	if (seat.isHuman) {
 		balance = seat.balance;
 		slotMessage = "Your reels are spinning. Other seats stay visible.";
@@ -243,14 +459,6 @@ function updateSlotSeats() {
 	for (var seatIndex = 0; seatIndex < array_length(slotSeats); seatIndex += 1) {
 		var seat = slotSeats[seatIndex];
 		if (!seat.active) continue;
-		if (!seat.isHuman && seat.spinTimer <= 0) {
-			seat.nextAutoTimer -= 1;
-			if (seat.nextAutoTimer <= 0) {
-				slotSeats[seatIndex] = seat;
-				startSlotSeat(seatIndex);
-				continue;
-			}
-		}
 		if (seat.spinTimer > 0) {
 			seat.spinTimer -= 1;
 			if (seat.spinTimer > 1) {
@@ -568,8 +776,8 @@ function createPachinkoSeat(_name, _isHuman) {
 	return {
 		name: _name,
 		isHuman: _isHuman,
-		active: true,
-		balance: _isHuman ? balance : irandom_range(180, 720),
+		active: _name != "",
+		balance: _isHuman ? balance : 0,
 		bet: currentBet(),
 		guess: _isHuman ? pachinkoGuess : irandom_range(1, pachinkoWidth),
 		path: [],
@@ -578,8 +786,12 @@ function createPachinkoSeat(_name, _isHuman) {
 		running: false,
 		landedPeg: 0,
 		status: "Ready",
-		nextAutoTimer: irandom_range(90, 220)
+		playerId: ""
 	};
+}
+
+function createEmptyPachinkoSeat() {
+	return createPachinkoSeat("", false);
 }
 
 function startPachinkoSeat(_seatIndex) {
@@ -602,7 +814,6 @@ function startPachinkoSeat(_seatIndex) {
 	seat.running = true;
 	seat.landedPeg = 0;
 	seat.status = "Dropping toward peg " + string(seat.guess);
-	seat.nextAutoTimer = irandom_range(150, 280);
 	if (seat.isHuman) {
 		balance = seat.balance;
 		pachinkoGuess = seat.guess;
@@ -648,15 +859,6 @@ function updatePachinkoSeats() {
 	for (var seatIndex = 0; seatIndex < array_length(pachinkoSeats); seatIndex += 1) {
 		var seat = pachinkoSeats[seatIndex];
 		if (!seat.active) continue;
-		if (!seat.isHuman && !seat.running) {
-			seat.nextAutoTimer -= 1;
-			if (seat.nextAutoTimer <= 0) {
-				seat.guess = irandom_range(1, pachinkoWidth);
-				pachinkoSeats[seatIndex] = seat;
-				startPachinkoSeat(seatIndex);
-				continue;
-			}
-		}
 		if (seat.running) {
 			seat.timer += 1;
 			if (seat.timer >= 10) {
@@ -722,12 +924,24 @@ function resolveHorseRace(_winner) {
 
 randomizeSlotGrid(slotGrid);
 slotSeats = [
-	createSlotSeat("You", true),
-	createSlotSeat("cutecorpse", false),
-	createSlotSeat("gaeley.", false)
+	createEmptySlotSeat(),
+	createEmptySlotSeat(),
+	createEmptySlotSeat()
 ];
 pachinkoSeats = [
-	createPachinkoSeat("You", true),
-	createPachinkoSeat("cutecorpse", false),
-	createPachinkoSeat("gaeley.", false)
+	createEmptyPachinkoSeat(),
+	createEmptyPachinkoSeat(),
+	createEmptyPachinkoSeat()
 ];
+
+if (tableMultiplayerEnabled) {
+	tableBrokerSocket = network_create_socket(network_socket_ws);
+	if (tableBrokerSocket >= 0) {
+		var tableConnectState = network_connect_raw_async(tableBrokerSocket, tableBrokerHost, tableBrokerPort);
+		if (tableConnectState < 0) {
+			tableBrokerStatus = "Broker connect failed.";
+		}
+	} else {
+		tableBrokerStatus = "Socket creation failed.";
+	}
+}

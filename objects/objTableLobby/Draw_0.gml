@@ -26,7 +26,7 @@ draw_text(30, 34, "DollOS V-3.0 // LumiGames Casino");
 draw_set_color(mutedTextColor);
 draw_text(30, 64, "> TABLE NODES // roulette included // SGC.WTF live build");
 
-var backButton = { x: room_width - 158, y: 20, w: 128, h: 42, label: "Menu" };
+var backButton = { x: room_width - 178, y: 20, w: 148, h: 42, label: "Main Menu" };
 drawLobbyButton(backButton, false, hoveredButton == "back");
 draw_set_halign(fa_center);
 draw_set_valign(fa_middle);

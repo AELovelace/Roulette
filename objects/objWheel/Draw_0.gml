@@ -110,7 +110,7 @@ draw_set_color(c_white);
 draw_text(spinButton.x + (spinButton.w * 0.5), spinButton.y + (spinButton.h * 0.5), "SPIN");
 draw_text(clearButton.x + (clearButton.w * 0.5), clearButton.y + (clearButton.h * 0.5), "CLEAR");
 draw_text(lobbyButton.x + (lobbyButton.w * 0.5), lobbyButton.y + (lobbyButton.h * 0.5), "LOBBIES");
-draw_text(menuButton.x + (menuButton.w * 0.5), menuButton.y + (menuButton.h * 0.5), "MENU");
+draw_text(menuButton.x + (menuButton.w * 0.5), menuButton.y + (menuButton.h * 0.5), "MAIN MENU");
 
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);

@@ -4,14 +4,10 @@ hoveredButton = "";
 
 function menuActivateSelection() {
 	if (selectedButton == 0) {
-		room_goto(Room1);
-	}
-
-	if (selectedButton == 1) {
 		room_goto(RoomTableLobby);
 	}
 
-	if (selectedButton == 2) {
+	if (selectedButton == 1) {
 		settingsOpen = true;
 		statusText = "[SYS] settings panel is blank for now.";
 	}
@@ -23,7 +19,7 @@ if (!settingsOpen) {
 	}
 
 	if (keyboard_check_pressed(vk_down) || keyboard_check_pressed(ord("S"))) {
-		selectedButton = min(2, selectedButton + 1);
+		selectedButton = min(1, selectedButton + 1);
 	}
 
 	if (point_in_rectangle(mouseXPos, mouseYPos, playButton.x, playButton.y, playButton.x + playButton.w, playButton.y + playButton.h)) {
@@ -31,14 +27,9 @@ if (!settingsOpen) {
 		selectedButton = 0;
 	}
 
-	if (point_in_rectangle(mouseXPos, mouseYPos, tableGamesButton.x, tableGamesButton.y, tableGamesButton.x + tableGamesButton.w, tableGamesButton.y + tableGamesButton.h)) {
-		hoveredButton = "tables";
-		selectedButton = 1;
-	}
-
 	if (point_in_rectangle(mouseXPos, mouseYPos, settingsButton.x, settingsButton.y, settingsButton.x + settingsButton.w, settingsButton.y + settingsButton.h)) {
 		hoveredButton = "settings";
-		selectedButton = 2;
+		selectedButton = 1;
 	}
 
 	if (keyboard_check_pressed(vk_enter) || keyboard_check_pressed(vk_space)) {
@@ -47,10 +38,6 @@ if (!settingsOpen) {
 
 	if (mouse_check_button_pressed(mb_left)) {
 		if (hoveredButton == "play") {
-			room_goto(Room1);
-		}
-
-		if (hoveredButton == "tables") {
 			room_goto(RoomTableLobby);
 		}
 
