@@ -107,7 +107,7 @@ if (signInOpen) {
 	draw_set_color(textColor);
 	draw_text(room_width * 0.5, signInPanel.y1 + 50, "SIGN IN // SADGIRLCOIN");
 	draw_set_color(lineColor);
-	draw_text(room_width * 0.5, signInPanel.y1 + 88, "Discord OAuth first. Legacy link code remains as fallback.");
+	draw_text(room_width * 0.5, signInPanel.y1 + 88, "Discord OAuth first. Your Discord name is used automatically.");
 
 	draw_set_halign(fa_left);
 	for (var i = 0; i < array_length(signInFields); i++) {

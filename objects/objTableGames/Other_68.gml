@@ -58,6 +58,18 @@ switch (eventType) {
 					});
 				}
 
+				if (messageKind == "signed_in") {
+					var signedState = rouletteStructGet(message, "signedIn", false);
+					var externalId = rouletteStructGet(message, "externalId", "");
+					var displayName = rouletteStructGet(message, "displayName", "");
+					global.sgcSignedIn = signedState;
+					global.sgcExternalId = externalId;
+					if (displayName != "") {
+						global.sgcDisplayName = displayName;
+						tablePlayerName = displayName;
+					}
+				}
+
 				if (messageKind == "table_state" && rouletteStructGet(message, "game", "") == tableGameKey) {
 					applyTableSnapshot(message);
 					statusText = tableLastEvent;

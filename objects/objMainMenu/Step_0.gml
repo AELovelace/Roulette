@@ -30,12 +30,26 @@ function menuSignInFieldSet(_index, _name, _value) {
 	}
 }
 
+function menuExternalIdFromName(_name) {
+	var out = string_lower(string_trim(_name));
+	out = string_replace_all(out, " ", "_");
+	out = string_replace_all(out, "@", "");
+	out = string_replace_all(out, "#", "_");
+	out = string_replace_all(out, "/", "_");
+	out = string_replace_all(out, "\\", "_");
+	out = string_replace_all(out, ":", "_");
+	out = string_replace_all(out, "?", "_");
+	out = string_replace_all(out, "&", "_");
+	out = string_replace_all(out, "=", "_");
+	if (out == "") out = "player";
+	return string_copy(out, 1, 64);
+}
+
 function menuOpenSignIn() {
 	signInOpen = true;
 	signInActiveField = 0;
-	menuSignInFieldSet(0, "value", global.sgcDisplayName);
-	menuSignInFieldSet(1, "value", global.sgcExternalId);
-	menuSignInFieldSet(2, "value", global.sgcLinkCode);
+	menuSignInFieldSet(0, "value", global.sgcExternalId);
+	menuSignInFieldSet(1, "value", global.sgcLinkCode);
 	keyboard_string = menuSignInFieldGet(signInActiveField, "value", "");
 	statusText = "[SYS] enter your Sadgirlcoin identity.";
 }
@@ -44,13 +58,10 @@ function menuConfirmSignIn() {
 	// Pull whatever is currently typed in the focused field.
 	menuSignInFieldSet(signInActiveField, "value", keyboard_string);
 
-	var newName     = string_trim(menuSignInFieldGet(0, "value", ""));
-	var newExternal = string_trim(menuSignInFieldGet(1, "value", ""));
-	var newCode     = string_trim(menuSignInFieldGet(2, "value", ""));
+	var newExternal = string_trim(menuSignInFieldGet(0, "value", ""));
+	var newCode     = string_trim(menuSignInFieldGet(1, "value", ""));
+	if (newExternal == "") newExternal = menuExternalIdFromName(global.sgcDisplayName);
 
-	if (newName == "") newName = "Player " + string(irandom_range(1000, 9999));
-
-	global.sgcDisplayName = string_copy(newName,     1, min(string_length(newName),     24));
 	global.sgcExternalId  = string_copy(newExternal, 1, min(string_length(newExternal), 64));
 	global.sgcLinkCode    = string_copy(newCode,     1, min(string_length(newCode),     16));
 	global.sgcSignedIn    = (global.sgcExternalId != "");
@@ -59,7 +70,7 @@ function menuConfirmSignIn() {
 	keyboard_string = "";
 	if (global.sgcSignedIn) {
 		if (global.sgcLinkCode != "") {
-			statusText = "[SGC] link-code fallback ready for " + global.sgcDisplayName + ".";
+			statusText = "[SGC] link-code fallback ready.";
 		} else {
 			statusText = "[SGC] OAuth identity set to " + global.sgcExternalId + ".";
 		}
@@ -72,24 +83,21 @@ function menuStartDiscordOAuth() {
 	// Capture currently edited field before launching browser flow.
 	menuSignInFieldSet(signInActiveField, "value", keyboard_string);
 
-	var newName     = string_trim(menuSignInFieldGet(0, "value", ""));
-	var newExternal = string_trim(menuSignInFieldGet(1, "value", ""));
-
-	if (newName == "") newName = "Player " + string(irandom_range(1000, 9999));
+	var newExternal = string_trim(menuSignInFieldGet(0, "value", ""));
 	if (newExternal == "") {
-		newExternal = "roulette_" + string(current_time) + "_" + string(irandom_range(100, 999));
+		newExternal = menuExternalIdFromName(global.sgcDisplayName);
 	}
 
-	global.sgcDisplayName = string_copy(newName,     1, min(string_length(newName),     24));
 	global.sgcExternalId  = string_copy(newExternal, 1, min(string_length(newExternal), 64));
-	menuSignInFieldSet(0, "value", global.sgcDisplayName);
-	menuSignInFieldSet(1, "value", global.sgcExternalId);
+	menuSignInFieldSet(0, "value", global.sgcExternalId);
 
 	var baseUrl = variable_global_exists("sgcBrokerHttpBase") ? string_trim(global.sgcBrokerHttpBase) : "https://sadgirlsclub.wtf";
 	if (baseUrl == "") baseUrl = "https://sadgirlsclub.wtf";
+	var outboundName = global.sgcDisplayName;
+	if (string_trim(outboundName) == "") outboundName = global.sgcExternalId;
 	var oauthUrl = baseUrl
 		+ "/sgc/oauth/start?external_id=" + menuUrlComponent(global.sgcExternalId)
-		+ "&external_name=" + menuUrlComponent(global.sgcDisplayName);
+		+ "&external_name=" + menuUrlComponent(outboundName);
 	url_open(oauthUrl);
 	statusText = "[SGC] browser opened for Discord OAuth. Return here, then press Confirm.";
 }

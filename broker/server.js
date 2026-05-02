@@ -245,6 +245,41 @@ function isOauthLinkedExternalId(externalId) {
   return (Date.now() - record.linkedAt) <= (24 * 60 * 60 * 1000);
 }
 
+function resolveDisplayNameFromOauthPayload(payload, fallbackName) {
+  const fallback = String(fallbackName || "").trim();
+  const safeFallback = (/^Player\s+\d+$/i.test(fallback) || fallback === "") ? "" : fallback;
+  const candidates = [
+    payload?.user?.display_name,
+    payload?.user?.global_name,
+    payload?.user?.username,
+    payload?.discord_user?.display_name,
+    payload?.discord_user?.global_name,
+    payload?.discord_user?.username,
+    payload?.account?.display_name,
+    payload?.account?.username,
+    payload?.profile?.display_name,
+    payload?.profile?.username,
+    payload?.display_name,
+    payload?.username,
+    payload?.link?.discord_name,
+    payload?.discord?.display_name,
+    payload?.discord?.username,
+    payload?.external_name,
+    safeFallback,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string") {
+      const trimmed = candidate.trim();
+      if (trimmed) {
+        return trimmed.slice(0, 24);
+      }
+    }
+  }
+
+  return "";
+}
+
 function markOauthLinked(externalId, displayName) {
   const key = String(externalId || "").trim();
   if (!key) return;
@@ -256,6 +291,9 @@ function markOauthLinked(externalId, displayName) {
   for (const player of state.players.values()) {
     if (player.sgcExternalId === key) {
       player.sgcSignedIn = true;
+      if (displayName) {
+        player.name = String(displayName).slice(0, 24);
+      }
 
       refreshPlayerBankrollFromSgc(player, "oauth_linked")
         .finally(() => {
@@ -264,7 +302,7 @@ function markOauthLinked(externalId, displayName) {
             playerId: player.id,
             signedIn: true,
             externalId: player.sgcExternalId,
-            displayName: player.name,
+            displayName: displayName || player.name,
           });
           broadcastState();
           for (const game of tableGames) broadcastTableGame(game);
@@ -1610,12 +1648,16 @@ const httpServer = http.createServer((req, res) => {
           return;
         }
 
-        markOauthLinked(pending.externalId, pending.externalName);
+        var resolvedName = resolveDisplayNameFromOauthPayload(parsed, pending.externalName);
+        if (!resolvedName) {
+          resolvedName = String(pending.externalId || "Player").slice(0, 24);
+        }
+        markOauthLinked(pending.externalId, resolvedName);
         writeHtml(
           res,
           200,
           "Discord OAuth complete",
-          `<p>Your Sadgirlcoin account is now linked for <code>${htmlEscape(pending.externalName)}</code>.</p><p>You can return to the game and press Confirm.</p>`
+          `<p>Your Sadgirlcoin account is now linked for <code>${htmlEscape(resolvedName)}</code>.</p><p>You can return to the game and press Confirm.</p>`
         );
       })
       .catch((error) => {
@@ -1733,7 +1775,13 @@ wss.on("connection", (socket) => {
         player.sgcLinkCode = message.link_code.trim().slice(0, 16);
       }
       const oauthLinked = isOauthLinkedExternalId(player.sgcExternalId);
+      const oauthRecord = oauthLinked ? oauthLinkedByExternalId.get(player.sgcExternalId) : null;
       player.sgcSignedIn = (!!message.signed_in && !!player.sgcExternalId) || oauthLinked;
+      if (oauthRecord?.displayName) {
+        player.name = oauthRecord.displayName.slice(0, 24);
+      } else if (player.sgcSignedIn && /^Player\s+\d+$/i.test(player.name || "") && player.sgcExternalId) {
+        player.name = player.sgcExternalId.slice(0, 24);
+      }
       if (!player.sgcSignedIn) {
         player.bankroll = DEFAULT_BANKROLL;
       }

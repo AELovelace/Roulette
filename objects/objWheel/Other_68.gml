@@ -50,6 +50,18 @@ switch (eventType) {
 					brokerStatus = "Connected as " + brokerPlayerId;
 				}
 
+				if (messageKind == "signed_in") {
+					var signedState = rouletteStructGet(message, "signedIn", false);
+					var externalId = rouletteStructGet(message, "externalId", "");
+					var displayName = rouletteStructGet(message, "displayName", "");
+					global.sgcSignedIn = signedState;
+					global.sgcExternalId = externalId;
+					if (displayName != "") {
+						global.sgcDisplayName = displayName;
+						playerName = displayName;
+					}
+				}
+
 				if (messageKind == "state") {
 					brokerPhase = rouletteStructGet(message, "phase", brokerPhase);
 					brokerPlayerCount = rouletteStructGet(message, "playerCount", brokerPlayerCount);

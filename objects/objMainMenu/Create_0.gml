@@ -7,7 +7,7 @@ selectedButton = 0;
 
 // Persistent SGC identity globals (consumed by objWheel / objTableGames on connect).
 if (!variable_global_exists("sgcSignedIn"))    global.sgcSignedIn    = false;
-if (!variable_global_exists("sgcDisplayName")) global.sgcDisplayName = "Player " + string(irandom_range(1000, 9999));
+if (!variable_global_exists("sgcDisplayName")) global.sgcDisplayName = "";
 if (!variable_global_exists("sgcExternalId")) global.sgcExternalId  = "";
 if (!variable_global_exists("sgcLinkCode"))    global.sgcLinkCode    = "";
 if (!variable_global_exists("sgcBrokerHttpBase")) global.sgcBrokerHttpBase = "https://sadgirlsclub.wtf";
@@ -68,8 +68,7 @@ signInPanel = {
 };
 
 signInFields = [
-	{ key: "name",     label: "Display Name",                          value: global.sgcDisplayName, max: 24 },
-	{ key: "external", label: "external_id (your app key)",            value: global.sgcExternalId,  max: 64 },
+	{ key: "external", label: "external_id (app user key)",            value: global.sgcExternalId,  max: 64 },
 	{ key: "code",     label: "Link Code (optional, e.g. H7K-4QZ)",    value: global.sgcLinkCode,    max: 16 }
 ];
 signInActiveField = 0;
