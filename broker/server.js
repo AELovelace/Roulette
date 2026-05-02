@@ -1690,16 +1690,17 @@ const httpServer = http.createServer((req, res) => {
 
         var resolvedName = resolveDisplayNameFromOauthPayload(parsed, pending.externalName);
         if (!resolvedName) {
-          resolvedName = String(pending.externalId || "").slice(0, 24);
-          if (!resolvedName) resolvedName = "Guest";
+          console.warn(
+            "[sgc][oauth] missing Discord username in token response; keeping existing in-game name. Check that the app record and grant both include identity:read."
+          );
         }
-        console.log(`[sgc][oauth] resolved display name: ${resolvedName}`);
+        console.log(`[sgc][oauth] resolved display name: ${resolvedName || "(unchanged)"}`);
         markOauthLinked(pending.externalId, resolvedName);
         writeHtml(
           res,
           200,
           "Discord OAuth complete",
-          `<p>Your Sadgirlcoin account is now linked for <code>${htmlEscape(resolvedName)}</code>.</p><p>You can return to the game and press Confirm.</p>`
+          `<p>Your Sadgirlcoin account is now linked${resolvedName ? ` for <code>${htmlEscape(resolvedName)}</code>` : ""}.</p><p>You can return to the game.</p>${resolvedName ? "" : "<p><strong>Note:</strong> The OAuth grant did not return Discord identity fields. Enable <code>identity:read</code> on the app and re-authorize to use your Discord username in-game.</p>"}`
         );
       })
       .catch((error) => {
@@ -1718,12 +1719,14 @@ const httpServer = http.createServer((req, res) => {
   if (req.method === "GET" && pathname === "/sgc/oauth/status") {
     const externalId = (requestUrl.searchParams.get("external_id") || "").trim();
     const linked = isOauthLinkedExternalId(externalId);
+    const oauthRecord = linked ? oauthLinkedByExternalId.get(externalId) : null;
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({
       ok: true,
       linked,
       external_id: externalId,
-      linked_at: linked ? oauthLinkedByExternalId.get(externalId).linkedAt : null,
+      display_name: oauthRecord?.displayName || "",
+      linked_at: oauthRecord?.linkedAt || null,
     }));
     return;
   }
@@ -1821,8 +1824,6 @@ wss.on("connection", (socket) => {
       player.sgcSignedIn = (!!message.signed_in && !!player.sgcExternalId) || oauthLinked;
       if (oauthRecord?.displayName) {
         player.name = oauthRecord.displayName.slice(0, 24);
-      } else if (player.sgcSignedIn && /^Player\s+\d+$/i.test(player.name || "") && player.sgcExternalId) {
-        player.name = player.sgcExternalId.slice(0, 24);
       }
       if (!player.sgcSignedIn) {
         player.bankroll = DEFAULT_BANKROLL;
@@ -2051,16 +2052,17 @@ wss.on("connection", (socket) => {
   });
 
   socket.on("close", () => {
-    removePlayerFromLobby(player);
-    const tableLobby = getTableLobbyForPlayer(player);
+          console.warn(
+            "[sgc][oauth] missing Discord username in token response; keeping existing in-game name. Check that the app record and grant both include identity:read."
+          );
     const tableGame = tableLobby?.game;
-    removePlayerFromTableLobby(player);
+        console.log(`[sgc][oauth] resolved display name: ${resolvedName || "(unchanged)"}`);
     state.players.delete(player.id);
     broadcastState();
     if (tableGame) broadcastTableGame(tableGame);
   });
 });
-
+          `<p>Your Sadgirlcoin account is now linked${resolvedName ? ` for <code>${htmlEscape(resolvedName)}</code>` : ""}.</p><p>You can return to the game.</p>${resolvedName ? "" : "<p><strong>Note:</strong> The OAuth grant did not return Discord identity fields. Enable <code>identity:read</code> on the app and re-authorize to use your Discord username in-game.</p>"}`
 httpServer.listen(PORT, HOST, () => {
   console.log(`[broker] listening on ws://${HOST}:${PORT}`);
   console.log(`[broker] webhook endpoint: http://${HOST}:${PORT}/sgc/webhook`);

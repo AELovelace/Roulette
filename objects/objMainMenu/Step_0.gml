@@ -15,21 +15,6 @@ function menuUrlComponent(_value) {
 	return out;
 }
 
-function menuSignInFieldGet(_index, _name, _default) {
-	var item = signInFields[_index];
-	if (is_struct(item) && variable_struct_exists(item, _name)) {
-		return variable_struct_get(item, _name);
-	}
-	return _default;
-}
-
-function menuSignInFieldSet(_index, _name, _value) {
-	var item = signInFields[_index];
-	if (is_struct(item)) {
-		variable_struct_set(item, _name, _value);
-	}
-}
-
 function menuSaveSgcSession() {
 	if (!variable_global_exists("sgcSessionPath")) global.sgcSessionPath = "sgc_session.ini";
 	ini_open(global.sgcSessionPath);
@@ -61,6 +46,21 @@ function menuOpenSignIn() {
 	statusText = "[SYS] click the button below to authenticate with Discord.";
 }
 
+function menuQueueOauthStatusPoll(_delayFrames) {
+	oauthPollCooldown = max(0, _delayFrames);
+}
+
+function menuRequestOauthStatus() {
+	if (!oauthAwaitingBrowserLink) return;
+	if (oauthPollRequestId != -1) return;
+	if (string_trim(global.sgcExternalId) == "") return;
+
+	var baseUrl = variable_global_exists("sgcBrokerHttpBase") ? string_trim(global.sgcBrokerHttpBase) : "https://sadgirlsclub.wtf";
+	if (baseUrl == "") baseUrl = "https://sadgirlsclub.wtf";
+	var statusUrl = baseUrl + "/sgc/oauth/status?external_id=" + menuUrlComponent(global.sgcExternalId);
+	oauthPollRequestId = http_get(statusUrl);
+}
+
 
 
 function menuStartDiscordOAuth() {
@@ -80,11 +80,16 @@ function menuStartDiscordOAuth() {
 		+ "/sgc/oauth/start?external_id=" + menuUrlComponent(global.sgcExternalId)
 		+ "&external_name=" + menuUrlComponent(outboundName);
 	url_open(oauthUrl);
-	statusText = "[SGC] browser opened for Discord OAuth. Return here when complete.";
+	oauthAwaitingBrowserLink = true;
+	menuQueueOauthStatusPoll(room_speed div 2);
+	statusText = "[SGC] browser opened for Discord OAuth. Waiting for confirmation...";
 }
 
 function menuCancelSignIn() {
 	signInOpen = false;
+	oauthAwaitingBrowserLink = false;
+	oauthPollRequestId = -1;
+	oauthPollCooldown = 0;
 	statusText = "[SYS] sign-in cancelled.";
 }
 
@@ -98,6 +103,17 @@ function menuActivateSelection() {
 }
 
 if (signInOpen) {
+	if (oauthAwaitingBrowserLink) {
+		if (oauthPollCooldown > 0) {
+			oauthPollCooldown -= 1;
+		} else {
+			menuRequestOauthStatus();
+			if (oauthPollRequestId == -1) {
+				menuQueueOauthStatusPoll(room_speed div 2);
+			}
+		}
+	}
+
 	// Button hover detection - verify structs exist first
 	if (!is_struct(signInOAuthButton) || !is_struct(signInCancelButton)) {
 		statusText = "[ERROR] Button structs not initialized!";
@@ -109,11 +125,11 @@ if (signInOpen) {
 	
 	if (overOAuth) {
 		hoveredButton = "signin_oauth";
-		statusText = "Click to authenticate with Discord";
+		if (!oauthAwaitingBrowserLink) statusText = "Click to authenticate with Discord";
 	}
 	else if (overCancel) {
 		hoveredButton = "signin_cancel";
-		statusText = "Cancel sign-in";
+		if (!oauthAwaitingBrowserLink) statusText = "Cancel sign-in";
 	}
 
 	if (keyboard_check_pressed(ord("O"))) menuStartDiscordOAuth();

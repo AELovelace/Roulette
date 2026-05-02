@@ -23,6 +23,10 @@ if (file_exists(global.sgcSessionPath)) {
 	ini_close();
 }
 
+oauthPollRequestId = -1;
+oauthPollCooldown = 0;
+oauthAwaitingBrowserLink = false;
+
 backgroundTop = make_color_rgb(5, 6, 10);
 backgroundBottom = make_color_rgb(34, 15, 38);
 panelColor = make_color_rgb(16, 15, 25);
