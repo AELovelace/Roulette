@@ -107,42 +107,15 @@ if (signInOpen) {
 	draw_set_color(textColor);
 	draw_text(room_width * 0.5, signInPanel.y1 + 50, "SIGN IN // SADGIRLCOIN");
 	draw_set_color(lineColor);
-	draw_text(room_width * 0.5, signInPanel.y1 + 88, "Discord OAuth first. Your Discord name is used automatically.");
-
-	draw_set_halign(fa_left);
-	for (var i = 0; i < array_length(signInFields); i++) {
-		var rowY = signInFirstRowY + i * signInRowHeight;
-		var field = signInFields[i];
-		var fieldValue = (is_struct(field) && variable_struct_exists(field, "value")) ? variable_struct_get(field, "value") : "";
-		var fieldLabel = (is_struct(field) && variable_struct_exists(field, "label")) ? variable_struct_get(field, "label") : "Field";
-		var displayValue = (i == signInActiveField) ? keyboard_string : fieldValue;
-		var isActive = (i == signInActiveField);
-
-		draw_set_color(lineColor);
-		draw_text(signInFieldX, rowY, fieldLabel);
-
-		var fieldFill = isActive ? make_color_rgb(48, 26, 56) : make_color_rgb(28, 18, 36);
-		draw_set_color(fieldFill);
-		draw_roundrect(signInFieldX, rowY + 22, signInFieldX + signInFieldW, rowY + 64, false);
-		draw_set_color(isActive ? buttonHoverColor : lineColor);
-		draw_roundrect(signInFieldX, rowY + 22, signInFieldX + signInFieldW, rowY + 64, true);
-
-		draw_set_color(textColor);
-		var caret = (isActive && (current_time div 500) mod 2 == 0) ? "_" : "";
-		draw_text(signInFieldX + 14, rowY + 43, displayValue + caret);
-	}
+	draw_text(room_width * 0.5, signInPanel.y1 + 110, "One-click Discord OAuth authentication");
 
 	draw_set_halign(fa_center);
 	draw_set_valign(fa_middle);
 
 	var oauthFill = (hoveredButton == "signin_oauth") ? buttonHoverColor : make_color_rgb(40, 30, 64);
-	var confirmFill = (hoveredButton == "signin_confirm") ? buttonHoverColor    : buttonColor;
 	var cancelFill  = (hoveredButton == "signin_cancel")  ? buttonAltHoverColor : buttonAltColor;
 
-	// Draw OAuth button with debug highlight
-	draw_set_color(make_color_rgb(255, 100, 100)); // Bright red debug color
-	draw_rectangle(signInOAuthButton.x - 2, signInOAuthButton.y - 2, signInOAuthButton.x + signInOAuthButton.w + 2, signInOAuthButton.y + signInOAuthButton.h + 2, false);
-	
+	// Draw OAuth button
 	draw_set_color(oauthFill);
 	draw_roundrect(signInOAuthButton.x, signInOAuthButton.y, signInOAuthButton.x + signInOAuthButton.w, signInOAuthButton.y + signInOAuthButton.h, false);
 	draw_set_color(lineColor);
@@ -150,13 +123,7 @@ if (signInOpen) {
 	draw_set_color(textColor);
 	draw_text(signInOAuthButton.x + signInOAuthButton.w * 0.5, signInOAuthButton.y + signInOAuthButton.h * 0.5, signInOAuthButton.label);
 
-	draw_set_color(confirmFill);
-	draw_roundrect(signInConfirmButton.x, signInConfirmButton.y, signInConfirmButton.x + signInConfirmButton.w, signInConfirmButton.y + signInConfirmButton.h, false);
-	draw_set_color(lineColor);
-	draw_roundrect(signInConfirmButton.x, signInConfirmButton.y, signInConfirmButton.x + signInConfirmButton.w, signInConfirmButton.y + signInConfirmButton.h, true);
-	draw_set_color(textColor);
-	draw_text(signInConfirmButton.x + signInConfirmButton.w * 0.5, signInConfirmButton.y + signInConfirmButton.h * 0.5, signInConfirmButton.label);
-
+	// Draw Cancel button
 	draw_set_color(cancelFill);
 	draw_roundrect(signInCancelButton.x, signInCancelButton.y, signInCancelButton.x + signInCancelButton.w, signInCancelButton.y + signInCancelButton.h, false);
 	draw_set_color(lineColor);

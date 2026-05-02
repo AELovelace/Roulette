@@ -78,33 +78,18 @@ signInPanel = {
 	y2: room_height - 80
 };
 
-signInFields = [
-	{ key: "external", label: "external_id (app user key)",            value: global.sgcExternalId,  max: 64 },
-	{ key: "code",     label: "Link Code (optional, e.g. H7K-4QZ)",    value: global.sgcLinkCode,    max: 16 }
-];
-signInActiveField = 0;
-signInRowHeight = 78;
-signInFieldX = signInPanel.x1 + 40;
-signInFieldW = (signInPanel.x2 - signInPanel.x1) - 80;
-signInFirstRowY = signInPanel.y1 + 112;
 
-signInConfirmButton = {
-	x: room_width * 0.5 - 220,
-	y: signInPanel.y1 + 220,
-	w: 200,
-	h: 56,
-	label: "Confirm"
-};
+
 signInOAuthButton = {
-	x: 50,
-	y: 200,
-	w: room_width - 100,
-	h: 60,
+	x: signInPanel.x1 + 40,
+	y: signInPanel.y1 + 140,
+	w: (signInPanel.x2 - signInPanel.x1) - 80,
+	h: 80,
 	label: "Continue with Discord OAuth"
 };
 signInCancelButton = {
-	x: room_width * 0.5 + 20,
-	y: signInPanel.y1 + 220,
+	x: room_width * 0.5 - 100,
+	y: signInPanel.y2 - 80,
 	w: 200,
 	h: 56,
 	label: "Cancel"

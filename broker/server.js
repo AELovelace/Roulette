@@ -1659,14 +1659,16 @@ const httpServer = http.createServer((req, res) => {
         if (!tokenRes.ok) {
           const message = htmlEscape(parsed?.error?.message || `Token exchange failed (${tokenRes.status}).`);
           writeHtml(res, 502, "OAuth sign-in failed", `<p>${message}</p>`);
-          return; (new identity:read fields prioritized):", {
-            discord_username: parsed?.discord_username,
-            user_discord_username: parsed?.user?.discord_username,
-            discord_name: parsed?.discord_name,
-            user_discord_name: parsed?.user?.discord_
+          return;
+        }
+
         if (SGC_DEBUG_SIGNIN) {
           console.log("[sgc][oauth] token payload keys:", Object.keys(parsed || {}));
           console.log("[sgc][oauth] token name candidates:", {
+            discord_username: parsed?.discord_username,
+            user_discord_username: parsed?.user?.discord_username,
+            discord_name: parsed?.discord_name,
+            user_discord_name: parsed?.user?.discord_name,
             user_discord_id: parsed?.user?.discord_id,
             user_discord_username: parsed?.user?.discord_username,
             user_display_name: parsed?.user?.display_name,

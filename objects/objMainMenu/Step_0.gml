@@ -58,55 +58,19 @@ function menuExternalIdFromName(_name) {
 
 function menuOpenSignIn() {
 	signInOpen = true;
-	signInActiveField = 0;
-	menuSignInFieldSet(0, "value", global.sgcExternalId);
-	menuSignInFieldSet(1, "value", global.sgcLinkCode);
-	keyboard_string = menuSignInFieldGet(signInActiveField, "value", "");
-	statusText = "[SYS] enter your Sadgirlcoin identity. (OAuth button: x=" + string(signInOAuthButton.x) + " y=" + string(signInOAuthButton.y) + " w=" + string(signInOAuthButton.w) + " h=" + string(signInOAuthButton.h) + ")";
+	statusText = "[SYS] click the button below to authenticate with Discord.";
 }
 
-function menuConfirmSignIn() {
-	// Pull whatever is currently typed in the focused field.
-	menuSignInFieldSet(signInActiveField, "value", keyboard_string);
 
-	var newExternal = string_trim(menuSignInFieldGet(0, "value", ""));
-	var newCode     = string_trim(menuSignInFieldGet(1, "value", ""));
-	if (newExternal == "") newExternal = menuExternalIdFromName(global.sgcDisplayName);
-
-	global.sgcExternalId  = string_copy(newExternal, 1, min(string_length(newExternal), 64));
-	global.sgcLinkCode    = string_copy(newCode,     1, min(string_length(newCode),     16));
-	global.sgcSignedIn    = (global.sgcExternalId != "");
-	menuSaveSgcSession();
-
-	signInOpen = false;
-	keyboard_string = "";
-	if (global.sgcSignedIn) {
-		if (global.sgcLinkCode != "") {
-			statusText = "[SGC] link-code fallback ready.";
-		} else {
-			statusText = "[SGC] OAuth identity set to " + global.sgcExternalId + ".";
-		}
-	} else {
-		statusText = "[SYS] guest mode active. add an external_id to link Sadgirlcoin.";
-	}
-}
 
 function menuStartDiscordOAuth() {
-	// Capture currently edited field before launching browser flow.
-	menuSignInFieldSet(signInActiveField, "value", keyboard_string);
-
-	var newExternal = string_trim(menuSignInFieldGet(0, "value", ""));
-	if (newExternal == "") {
-		newExternal = menuExternalIdFromName(global.sgcDisplayName);
+	// Generate a UUID-like external_id if not already set
+	if (global.sgcExternalId == "") {
+		var timestamp = current_time;
+		var random_part = string(irandom_range(100000, 999999));
+		global.sgcExternalId = "player_" + string(timestamp) + "_" + random_part;
+		menuSaveSgcSession();
 	}
-	if (newExternal == "") {
-		statusText = "[SGC] enter external_id before OAuth (example: your Discord user id).";
-		return;
-	}
-
-	global.sgcExternalId  = string_copy(newExternal, 1, min(string_length(newExternal), 64));
-	menuSignInFieldSet(0, "value", global.sgcExternalId);
-	menuSaveSgcSession();
 
 	var baseUrl = variable_global_exists("sgcBrokerHttpBase") ? string_trim(global.sgcBrokerHttpBase) : "https://sadgirlsclub.wtf";
 	if (baseUrl == "") baseUrl = "https://sadgirlsclub.wtf";
@@ -116,12 +80,11 @@ function menuStartDiscordOAuth() {
 		+ "/sgc/oauth/start?external_id=" + menuUrlComponent(global.sgcExternalId)
 		+ "&external_name=" + menuUrlComponent(outboundName);
 	url_open(oauthUrl);
-	statusText = "[SGC] browser opened for Discord OAuth. Return here, then press Confirm.";
+	statusText = "[SGC] browser opened for Discord OAuth. Return here when complete.";
 }
 
 function menuCancelSignIn() {
 	signInOpen = false;
-	keyboard_string = "";
 	statusText = "[SYS] sign-in cancelled.";
 }
 
@@ -135,67 +98,34 @@ function menuActivateSelection() {
 }
 
 if (signInOpen) {
-	if (keyboard_check_pressed(vk_tab)) {
-		menuSignInFieldSet(signInActiveField, "value", keyboard_string);
-		signInActiveField = (signInActiveField + 1) mod array_length(signInFields);
-		keyboard_string = menuSignInFieldGet(signInActiveField, "value", "");
-	}
-
-	for (var i = 0; i < array_length(signInFields); i++) {
-		var rowY = signInFirstRowY + i * signInRowHeight;
-		if (point_in_rectangle(mouseXPos, mouseYPos, signInFieldX, rowY + 22, signInFieldX + signInFieldW, rowY + 64)) {
-			if (mouse_check_button_pressed(mb_left)) {
-				menuSignInFieldSet(signInActiveField, "value", keyboard_string);
-				signInActiveField = i;
-				keyboard_string = menuSignInFieldGet(signInActiveField, "value", "");
-			}
-		}
-	}
-
 	// Button hover detection - verify structs exist first
-	if (!is_struct(signInOAuthButton) || !is_struct(signInConfirmButton) || !is_struct(signInCancelButton)) {
+	if (!is_struct(signInOAuthButton) || !is_struct(signInCancelButton)) {
 		statusText = "[ERROR] Button structs not initialized!";
 		exit;
 	}
 	
-	var overConfirm = point_in_rectangle(mouseXPos, mouseYPos, signInConfirmButton.x, signInConfirmButton.y, signInConfirmButton.x + signInConfirmButton.w, signInConfirmButton.y + signInConfirmButton.h);
 	var overOAuth   = point_in_rectangle(mouseXPos, mouseYPos, signInOAuthButton.x,   signInOAuthButton.y,   signInOAuthButton.x   + signInOAuthButton.w,   signInOAuthButton.y   + signInOAuthButton.h);
 	var overCancel  = point_in_rectangle(mouseXPos, mouseYPos, signInCancelButton.x,  signInCancelButton.y,  signInCancelButton.x  + signInCancelButton.w,  signInCancelButton.y  + signInCancelButton.h);
 	
 	if (overOAuth) {
 		hoveredButton = "signin_oauth";
-		statusText = ">>> OAUTH BUTTON HOVERED <<< Click to authenticate";
-	}
-	else if (overConfirm) {
-		hoveredButton = "signin_confirm";
-		statusText = "[Confirm hovered]";
+		statusText = "Click to authenticate with Discord";
 	}
 	else if (overCancel) {
 		hoveredButton = "signin_cancel";
-		statusText = "[Cancel hovered]";
+		statusText = "Cancel sign-in";
 	}
-	else {
-		statusText = "[OAuth: " + string(overOAuth) + "] [Confirm: " + string(overConfirm) + "] [Cancel: " + string(overCancel) + "] Mouse: (" + string(mouseXPos) + ", " + string(mouseYPos) + ")";
-	}
-
-	var maxLen = real(menuSignInFieldGet(signInActiveField, "max", 64));
-	if (string_length(keyboard_string) > maxLen) keyboard_string = string_copy(keyboard_string, 1, maxLen);
 
 	if (keyboard_check_pressed(ord("O"))) menuStartDiscordOAuth();
-	if (keyboard_check_pressed(vk_enter)) menuConfirmSignIn();
 	if (keyboard_check_pressed(vk_escape)) menuCancelSignIn();
 
 	// Button click handling
 	if (mouse_check_button_pressed(mb_left)) {
-		// Check each button independently
 		var clickedOAuth = point_in_rectangle(mouseXPos, mouseYPos, signInOAuthButton.x, signInOAuthButton.y, signInOAuthButton.x + signInOAuthButton.w, signInOAuthButton.y + signInOAuthButton.h);
-		var clickedConfirm = point_in_rectangle(mouseXPos, mouseYPos, signInConfirmButton.x, signInConfirmButton.y, signInConfirmButton.x + signInConfirmButton.w, signInConfirmButton.y + signInConfirmButton.h);
 		var clickedCancel = point_in_rectangle(mouseXPos, mouseYPos, signInCancelButton.x, signInCancelButton.y, signInCancelButton.x + signInCancelButton.w, signInCancelButton.y + signInCancelButton.h);
 		
 		if (clickedOAuth) {
 			menuStartDiscordOAuth();
-		} else if (clickedConfirm) {
-			menuConfirmSignIn();
 		} else if (clickedCancel) {
 			menuCancelSignIn();
 		}
