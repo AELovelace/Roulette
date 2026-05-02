@@ -1,9 +1,10 @@
+viewResize();
 var mouseXPos = device_mouse_x_to_gui(0);
 var mouseYPos = device_mouse_y_to_gui(0);
 hoveredControl = "";
 
-var backButton = { x: room_width - 326, y: 20, w: 128, h: 42, label: tableRoomLocked ? "Tables" : "Back" };
-var mainMenuButton = { x: room_width - 178, y: 20, w: 148, h: 42, label: "Main Menu" };
+var backButton = { x: VIEW_W - 326, y: 20, w: 128, h: 42, label: tableRoomLocked ? "Tables" : "Back" };
+var mainMenuButton = { x: VIEW_W - 178, y: 20, w: 148, h: 42, label: "Main Menu" };
 var spinButton = { x: 90, y: 636, w: 190, h: 56, label: "Spin" };
 var dropButton = { x: 88, y: 636, w: 190, h: 56, label: "Drop" };
 var pegMinusButton = { x: 318, y: 636, w: 52, h: 56, label: "-" };
@@ -16,11 +17,11 @@ var holdemNextButton = { x: 228, y: 636, w: 130, h: 56, label: "Check" };
 var holdemRaiseButton = { x: 374, y: 636, w: 130, h: 56, label: "Raise" };
 var holdemFoldButton = { x: 520, y: 636, w: 130, h: 56, label: "Fold" };
 var raceButton = { x: 84, y: 636, w: 190, h: 56, label: "Start Race" };
-var joinTableButton = { x: room_width * 0.5 - 135, y: 508, w: 270, h: 60, label: "Join Table" };
-var enterTableButton = { x: room_width * 0.5 - 135, y: 570, w: 270, h: 48, label: "Enter Table" };
-var createTableLobbyButton = { x: room_width * 0.5 - 276, y: 508, w: 170, h: 52, label: "Create Lobby" };
-var joinTableLobbyButton = { x: room_width * 0.5 - 86, y: 508, w: 170, h: 52, label: "Join Lobby" };
-var leaveTableLobbyButton = { x: room_width * 0.5 + 104, y: 508, w: 170, h: 52, label: "Leave Lobby" };
+var joinTableButton = { x: VIEW_W * 0.5 - 135, y: 508, w: 270, h: 60, label: "Join Table" };
+var enterTableButton = { x: VIEW_W * 0.5 - 135, y: 570, w: 270, h: 48, label: "Enter Table" };
+var createTableLobbyButton = { x: VIEW_W * 0.5 - 276, y: 508, w: 170, h: 52, label: "Create Lobby" };
+var joinTableLobbyButton = { x: VIEW_W * 0.5 - 86, y: 508, w: 170, h: 52, label: "Join Lobby" };
+var leaveTableLobbyButton = { x: VIEW_W * 0.5 + 104, y: 508, w: 170, h: 52, label: "Leave Lobby" };
 
 if (keyboard_check_pressed(vk_escape)) {
 	if (tableRoomLocked && tableMultiplayerEnabled) {
@@ -100,7 +101,7 @@ if (tableLobbyOpen) {
 
 		for (var tableLobbyIndex = 0; tableLobbyIndex < array_length(tableLobbyList); tableLobbyIndex += 1) {
 			var rowTop = 338 + tableLobbyIndex * 34;
-			if (point_in_rectangle(mouseXPos, mouseYPos, room_width * 0.5 - 300, rowTop, room_width * 0.5 + 300, rowTop + 28)) {
+			if (point_in_rectangle(mouseXPos, mouseYPos, VIEW_W * 0.5 - 300, rowTop, VIEW_W * 0.5 + 300, rowTop + 28)) {
 				tableSelectedLobbyId = rouletteStructGet(tableLobbyList[tableLobbyIndex], "id", "");
 			}
 		}

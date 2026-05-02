@@ -2,7 +2,8 @@ var mouseXPos = device_mouse_x_to_gui(0);
 var mouseYPos = device_mouse_y_to_gui(0);
 hoveredButton = "";
 
-var backButton = { x: room_width - 178, y: 20, w: 148, h: 42, label: "Main Menu" };
+viewResize();
+var backButton = { x: VIEW_W - 178, y: 20, w: 148, h: 42, label: "Main Menu" };
 
 if (keyboard_check_pressed(vk_escape)) {
 	room_goto(RoomMenu);

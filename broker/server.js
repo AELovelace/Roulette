@@ -1886,25 +1886,34 @@ const httpServer = http.createServer((req, res) => {
             "[sgc][oauth] missing Discord username in token response; keeping existing in-game name. Check that the app record and grant both include identity:read."
           );
         }
+        let linkedExternalId = pending.externalId;
+        const existingIdentity = identityStore.getByDiscordId(discordId);
+        if (existingIdentity?.appId && existingIdentity.appId !== pending.externalId) {
+          linkedExternalId = existingIdentity.appId;
+          console.log(
+            `[sgc][oauth] reusing existing Roulette identity ${linkedExternalId} for discord_id ${discordId}; pending session requested ${pending.externalId}`
+          );
+        }
+
         try {
-          identityStore.bindDiscordId(discordId, pending.externalId, resolvedName);
+          identityStore.bindDiscordId(discordId, linkedExternalId, resolvedName);
         } catch (error) {
           console.error(`[sgc][oauth] identity bind failed: ${oauthErrorDetail(error)}`);
           writeHtml(
             res,
             409,
             "OAuth sign-in conflict",
-            "<p>This Discord account is already attached to a different Roulette identity. Sign in again from the original device session or clear the conflicting mapping manually.</p>"
+            "<p>This Discord account is already attached to a different Roulette identity and could not be resumed automatically.</p>"
           );
           return;
         }
         console.log(`[sgc][oauth] resolved display name: ${resolvedName || "(unchanged)"}`);
-        markOauthLinked(pending.oauthSessionId, pending.externalId, resolvedName);
+        markOauthLinked(pending.oauthSessionId, linkedExternalId, resolvedName);
         writeHtml(
           res,
           200,
           "Discord OAuth complete",
-          `<p>Your Sadgirlcoin account is now linked${resolvedName ? ` for <code>${htmlEscape(resolvedName)}</code>` : ""}.</p><p>Your immutable Roulette ID is <code>${htmlEscape(pending.externalId)}</code>.</p><p>This window can close now. The original game tab will pick up the auth state automatically.</p>${resolvedName ? "" : "<p><strong>Note:</strong> The OAuth grant did not return Discord identity fields. Enable <code>identity:read</code> on the app and re-authorize to use your Discord username in-game.</p>"}${pending.returnTo ? `<p>If this window does not close on its own, close it and return to your original game tab.</p>` : ""}`,
+          `<p>Your Sadgirlcoin account is now linked${resolvedName ? ` for <code>${htmlEscape(resolvedName)}</code>` : ""}.</p><p>Your immutable Roulette ID is <code>${htmlEscape(linkedExternalId)}</code>.</p><p>This window can close now. The original game tab will pick up the auth state automatically.</p>${resolvedName ? "" : "<p><strong>Note:</strong> The OAuth grant did not return Discord identity fields. Enable <code>identity:read</code> on the app and re-authorize to use your Discord username in-game.</p>"}${pending.returnTo ? `<p>If this window does not close on its own, close it and return to your original game tab.</p>` : ""}`,
           buildOauthReturnScript(pending.returnTo)
         );
       })

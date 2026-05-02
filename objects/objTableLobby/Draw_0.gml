@@ -8,16 +8,16 @@ function drawLobbyButton(_button, _selected, _hovered) {
 }
 
 draw_clear_alpha(backgroundTop, 1);
-for (var stripe = 0; stripe < room_height; stripe += 6) {
-	var blend = stripe / room_height;
+for (var stripe = 0; stripe < VIEW_H; stripe += 6) {
+	var blend = stripe / VIEW_H;
 	draw_set_color(merge_color(backgroundTop, backgroundBottom, blend));
-	draw_rectangle(0, stripe, room_width, stripe + 6, false);
+	draw_rectangle(0, stripe, VIEW_W, stripe + 6, false);
 }
 
 draw_set_color(make_color_rgb(12, 22, 22));
-draw_rectangle(0, 0, room_width, 84, false);
+draw_rectangle(0, 0, VIEW_W, 84, false);
 draw_set_color(railColor);
-draw_line(0, 84, room_width, 84);
+draw_line(0, 84, VIEW_W, 84);
 
 draw_set_halign(fa_left);
 draw_set_valign(fa_middle);
@@ -26,7 +26,7 @@ draw_text(30, 34, "DollOS V-3.0 // LumiGames Casino");
 draw_set_color(mutedTextColor);
 draw_text(30, 64, "> TABLE NODES // roulette included // SGC.WTF live build");
 
-var backButton = { x: room_width - 178, y: 20, w: 148, h: 42, label: "Main Menu" };
+var backButton = { x: VIEW_W - 178, y: 20, w: 148, h: 42, label: "Main Menu" };
 drawLobbyButton(backButton, false, hoveredButton == "back");
 draw_set_halign(fa_center);
 draw_set_valign(fa_middle);
@@ -51,7 +51,7 @@ for (var i = 0; i < array_length(tableNames); i += 1) {
 draw_set_halign(fa_left);
 draw_set_valign(fa_middle);
 draw_set_color(railColor);
-draw_text(30, room_height - 28, statusText);
+draw_text(30, VIEW_H - 28, statusText);
 draw_set_halign(fa_right);
 draw_set_color(mutedTextColor);
-draw_text(room_width - 30, room_height - 28, "Arrows/WASD: select  |  Enter: enter  |  Esc: menu");
+draw_text(VIEW_W - 30, VIEW_H - 28, "Arrows/WASD: select  |  Enter: enter  |  Esc: menu");

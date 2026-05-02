@@ -1,3 +1,17 @@
+/// @desc VIEW_W / VIEW_H   — dynamic window dimensions (replaces room_width/room_height for layout)
+#macro VIEW_W display_get_gui_width()
+#macro VIEW_H display_get_gui_height()
+
+/// @desc Resize the application surface and GUI layer to match the OS window each step.
+function viewResize() {
+	var _ww = max(100, window_get_width());
+	var _wh = max(100, window_get_height());
+	if (surface_get_width(application_surface) != _ww || surface_get_height(application_surface) != _wh) {
+		surface_resize(application_surface, _ww, _wh);
+		display_set_gui_size(_ww, _wh);
+	}
+}
+
 function angleNorm(_a){
 	return((_a mod 360) + 360) mod 360;
 }

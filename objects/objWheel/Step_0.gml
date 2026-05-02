@@ -7,6 +7,17 @@ var mouseYPos = mouse_y;
 var brokerMode = multiplayerEnabled && brokerConnected;
 var canEditTable = !spinActive && ballState != 1 && (!brokerMode || (brokerPhase == "betting" && !lobbyBrowserOpen && currentLobbyId != ""));
 
+// --- dynamic layout (recalculate each step so resize is instant) ---
+viewResize();
+lobbyButton.x    = VIEW_W - 360;
+menuButton.x     = VIEW_W - 200;
+lobbyPanel.x1    = VIEW_W * 0.5 - 300;
+lobbyPanel.x2    = VIEW_W * 0.5 + 300;
+createLobbyButton.x = lobbyPanel.x1 + 28;
+joinLobbyButton.x   = lobbyPanel.x1 + 214;
+leaveLobbyButton.x  = lobbyPanel.x1 + 400;
+// --- end dynamic layout ---
+
 function returnToMenuRoom() {
     if (brokerSocket >= 0) {
         network_destroy(brokerSocket);

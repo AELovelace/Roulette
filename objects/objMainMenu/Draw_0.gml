@@ -1,21 +1,21 @@
 draw_clear_alpha(backgroundTop, 1);
 
-for (var stripe = 0; stripe < room_height; stripe += 6) {
-	var blend = stripe / room_height;
+for (var stripe = 0; stripe < VIEW_H; stripe += 6) {
+	var blend = stripe / VIEW_H;
 	draw_set_color(merge_color(backgroundTop, backgroundBottom, blend));
-	draw_rectangle(0, stripe, room_width, stripe + 6, false);
+	draw_rectangle(0, stripe, VIEW_W, stripe + 6, false);
 }
 
 draw_set_alpha(0.92);
 draw_set_color(panelColor);
-draw_roundrect(room_width * 0.5 - 260, 110, room_width * 0.5 + 260, room_height - 110, false);
+draw_roundrect(VIEW_W * 0.5 - 260, 110, VIEW_W * 0.5 + 260, VIEW_H - 110, false);
 draw_set_alpha(1);
 
 draw_set_halign(fa_center);
 draw_set_valign(fa_middle);
 draw_set_color(lineColor);
-draw_text(room_width * 0.5, 175, titleText);
-draw_text(room_width * 0.5, 215, subtitleText);
+draw_text(VIEW_W * 0.5, 175, titleText);
+	draw_text(VIEW_W * 0.5, 215, subtitleText);
 
 var signInSelected   = (hoveredButton == "signin")   || (!settingsOpen && !signInOpen && selectedButton == 0);
 var playSelected     = (hoveredButton == "play")     || (!settingsOpen && !signInOpen && selectedButton == 1);
@@ -57,13 +57,13 @@ draw_text(settingsButton.x + settingsButton.w * 0.5, settingsButton.y + settings
 draw_set_halign(fa_center);
 draw_set_valign(fa_middle);
 draw_set_color(lineColor);
-draw_text(room_width * 0.5, settingsButton.y + settingsButton.h + 50, statusText);
-draw_text(room_width * 0.5, room_height - 78, "> ARROWS/WASD + ENTER // ESC where available");
+draw_text(VIEW_W * 0.5, settingsButton.y + settingsButton.h + 50, statusText);
+	draw_text(VIEW_W * 0.5, VIEW_H - 78, "> ARROWS/WASD + ENTER // ESC where available");
 
 if (settingsOpen) {
 	draw_set_alpha(0.68);
 	draw_set_color(c_black);
-	draw_rectangle(0, 0, room_width, room_height, false);
+	draw_rectangle(0, 0, VIEW_W, VIEW_H, false);
 	draw_set_alpha(1);
 
 	draw_set_color(make_color_rgb(20, 51, 44));
@@ -74,10 +74,10 @@ if (settingsOpen) {
 	draw_set_halign(fa_center);
 	draw_set_valign(fa_middle);
 	draw_set_color(textColor);
-	draw_text(room_width * 0.5, settingsPanel.y1 + 52, "SETTINGS // NOTICE BOARD");
+	draw_text(VIEW_W * 0.5, settingsPanel.y1 + 52, "SETTINGS // NOTICE BOARD");
 	draw_set_color(lineColor);
-	draw_text(room_width * 0.5, settingsPanel.y1 + 118, "[SYS] blank config panel for now.");
-	draw_text(room_width * 0.5, settingsPanel.y1 + 154, "LumiGames options can land here later.");
+	draw_text(VIEW_W * 0.5, settingsPanel.y1 + 118, "[SYS] blank config panel for now.");
+	draw_text(VIEW_W * 0.5, settingsPanel.y1 + 154, "LumiGames options can land here later.");
 
 	var closeFill = (hoveredButton == "settings_close") ? buttonAltHoverColor : buttonAltColor;
 	draw_set_color(closeFill);
@@ -88,13 +88,13 @@ if (settingsOpen) {
 	draw_text(settingsCloseButton.x + settingsCloseButton.w * 0.5, settingsCloseButton.y + settingsCloseButton.h * 0.5, settingsCloseButton.label);
 
 	draw_set_color(lineColor);
-	draw_text(room_width * 0.5, settingsCloseButton.y + settingsCloseButton.h + 46, "Press Esc to close.");
+	draw_text(VIEW_W * 0.5, settingsCloseButton.y + settingsCloseButton.h + 46, "Press Esc to close.");
 }
 
 if (signInOpen) {
 	draw_set_alpha(0.78);
 	draw_set_color(c_black);
-	draw_rectangle(0, 0, room_width, room_height, false);
+	draw_rectangle(0, 0, VIEW_W, VIEW_H, false);
 	draw_set_alpha(1);
 
 	draw_set_color(make_color_rgb(22, 14, 32));
@@ -105,9 +105,9 @@ if (signInOpen) {
 	draw_set_halign(fa_center);
 	draw_set_valign(fa_middle);
 	draw_set_color(textColor);
-	draw_text(room_width * 0.5, signInPanel.y1 + 50, "SIGN IN // SADGIRLCOIN");
+	draw_text(VIEW_W * 0.5, signInPanel.y1 + 50, "SIGN IN // SADGIRLCOIN");
 	draw_set_color(lineColor);
-	draw_text(room_width * 0.5, signInPanel.y1 + 110, "One-click Discord OAuth authentication");
+	draw_text(VIEW_W * 0.5, signInPanel.y1 + 110, "One-click Discord OAuth authentication");
 
 	draw_set_halign(fa_center);
 	draw_set_valign(fa_middle);

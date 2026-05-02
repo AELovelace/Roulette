@@ -87,14 +87,14 @@ panelX = tableX + tableW + 24;
 panelY = tableY;
 spinButton = { x: panelX, y: panelY, w: 150, h: 40 };
 clearButton = { x: panelX, y: panelY + 48, w: 150, h: 34 };
-lobbyButton = { x: room_width - 360, y: 20, w: 140, h: 34 };
-menuButton = { x: room_width - 200, y: 20, w: 170, h: 34 };
+lobbyButton = { x: VIEW_W - 360, y: 20, w: 140, h: 34 };
+menuButton = { x: VIEW_W - 200, y: 20, w: 170, h: 34 };
 chipButtons = [];
 betAreas = [];
 lobbyPanel = {
-	x1: room_width * 0.5 - 300,
+	x1: VIEW_W * 0.5 - 300,
 	y1: 95,
-	x2: room_width * 0.5 + 300,
+	x2: VIEW_W * 0.5 + 300,
 	y2: 520
 };
 createLobbyButton = { x: lobbyPanel.x1 + 28, y: lobbyPanel.y2 - 72, w: 160, h: 42 };

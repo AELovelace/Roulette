@@ -1,13 +1,13 @@
 draw_clear_alpha(make_color_rgb(5, 6, 10), 1);
 
-var cx = room_width * 0.5;
-var cy = room_height * 0.3;
+var cx = VIEW_W * 0.5;
+var cy = VIEW_H * 0.3;
 var displayBallAngle = ((ballAngle mod 360) + 360) mod 360;
 var bx = cx + lengthdir_x(ballRadius, displayBallAngle);
 var by = cy + lengthdir_y(ballRadius, displayBallAngle);
 
 draw_set_color(make_color_rgb(5, 6, 10));
-draw_rectangle(0, 0, room_width, room_height, false);
+draw_rectangle(0, 0, VIEW_W, VIEW_H, false);
 
 var brokerMode = multiplayerEnabled && brokerConnected;
 
@@ -155,7 +155,7 @@ draw_text_ext(statusX, statusY + 174, lastSpinSummary, 280, 18);
 if (brokerMode && lobbyBrowserOpen) {
 	draw_set_alpha(0.76);
 	draw_set_color(c_black);
-	draw_rectangle(0, 0, room_width, room_height, false);
+	draw_rectangle(0, 0, VIEW_W, VIEW_H, false);
 	draw_set_alpha(1);
 
 	draw_set_color(panelColor);

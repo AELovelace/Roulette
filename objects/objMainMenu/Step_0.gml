@@ -2,6 +2,28 @@ var mouseXPos = device_mouse_x_to_gui(0);
 var mouseYPos = device_mouse_y_to_gui(0);
 hoveredButton = "";
 
+// --- dynamic layout (recalculate each step so resize is instant) ---
+viewResize();
+buttonX = VIEW_W * 0.5 - buttonWidth * 0.5;
+signInButton.x = buttonX;
+playButton.x = buttonX;
+settingsButton.x = buttonX;
+settingsPanel.x1 = VIEW_W * 0.5 - 290;
+settingsPanel.x2 = VIEW_W * 0.5 + 290;
+settingsPanel.y2 = VIEW_H - 130;
+signInPanel.x1 = VIEW_W * 0.5 - 320;
+signInPanel.x2 = VIEW_W * 0.5 + 320;
+signInPanel.y2 = VIEW_H - 80;
+signInOAuthButton.x     = signInPanel.x1 + 40;
+signInOAuthButton.w     = signInPanel.x2 - signInPanel.x1 - 80;
+signInSignOutButton.x   = signInPanel.x1 + 40;
+signInSignOutButton.w   = signInPanel.x2 - signInPanel.x1 - 80;
+signInCancelButton.x    = VIEW_W * 0.5 - 100;
+signInCancelButton.y    = signInPanel.y2 - 80;
+settingsCloseButton.x   = VIEW_W * 0.5 - 110;
+settingsCloseButton.y   = VIEW_H - 220;
+// --- end dynamic layout ---
+
 function menuUrlComponent(_value) {
 	var out = string(_value);
 	out = string_replace_all(out, "%", "%25");

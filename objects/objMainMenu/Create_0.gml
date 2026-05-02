@@ -56,7 +56,7 @@ buttonAltHoverColor = make_color_rgb(43, 62, 84);
 buttonWidth = 360;
 buttonHeight = 64;
 buttonGap = 20;
-buttonX = room_width * 0.5 - buttonWidth * 0.5;
+buttonX = VIEW_W * 0.5 - buttonWidth * 0.5;
 buttonY = 280;
 
 signInButton = {
@@ -84,18 +84,18 @@ settingsButton = {
 };
 
 settingsPanel = {
-	x1: room_width * 0.5 - 290,
+	x1: VIEW_W * 0.5 - 290,
 	y1: 150,
-	x2: room_width * 0.5 + 290,
-	y2: room_height - 130
+	x2: VIEW_W * 0.5 + 290,
+	y2: VIEW_H - 130
 };
 
 // Sign In modal layout.
 signInPanel = {
-	x1: room_width * 0.5 - 320,
+	x1: VIEW_W * 0.5 - 320,
 	y1: 80,
-	x2: room_width * 0.5 + 320,
-	y2: room_height - 80
+	x2: VIEW_W * 0.5 + 320,
+	y2: VIEW_H - 80
 };
 
 
@@ -115,7 +115,7 @@ signInSignOutButton = {
 	label: "Sign Out On This Device"
 };
 signInCancelButton = {
-	x: room_width * 0.5 - 100,
+	x: VIEW_W * 0.5 - 100,
 	y: signInPanel.y2 - 80,
 	w: 200,
 	h: 56,
@@ -123,8 +123,8 @@ signInCancelButton = {
 };
 
 settingsCloseButton = {
-	x: room_width * 0.5 - 110,
-	y: room_height - 220,
+	x: VIEW_W * 0.5 - 110,
+	y: VIEW_H - 220,
 	w: 220,
 	h: 52,
 	label: "Back"

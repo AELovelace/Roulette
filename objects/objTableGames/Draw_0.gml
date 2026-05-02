@@ -138,9 +138,9 @@ function drawBlackjackParticipants(_x, _y) {
 
 function drawGameShell(_title, _message) {
 	draw_set_color(panelColor);
-	draw_roundrect(34, 144, room_width - 34, 618, false);
+	draw_roundrect(34, 144, VIEW_W - 34, 618, false);
 	draw_set_color(railColor);
-	draw_roundrect(34, 144, room_width - 34, 618, true);
+	draw_roundrect(34, 144, VIEW_W - 34, 618, true);
 	draw_set_halign(fa_left);
 	draw_set_valign(fa_top);
 	draw_set_color(textColor);
@@ -151,19 +151,19 @@ function drawGameShell(_title, _message) {
 
 function drawLocalGameLobby() {
 	draw_set_color(panelColor);
-	draw_roundrect(210, 178, room_width - 210, 594, false);
+	draw_roundrect(210, 178, VIEW_W - 210, 594, false);
 	draw_set_color(railColor);
-	draw_roundrect(210, 178, room_width - 210, 594, true);
+	draw_roundrect(210, 178, VIEW_W - 210, 594, true);
 	draw_set_halign(fa_center);
 	draw_set_valign(fa_middle);
 	draw_set_color(textColor);
-	draw_text(room_width * 0.5, 250, gameNames[selectedGame] + " Lobby");
+	draw_text(VIEW_W * 0.5, 250, gameNames[selectedGame] + " Lobby");
 	draw_set_color(mutedTextColor);
-	draw_text(room_width * 0.5, 304, "> TABLE LOBBY // SGC.WTF");
-	draw_text(room_width * 0.5, 346, "Balance: " + string(balance) + " chips  |  Bet: " + string(currentBet()) + " chips");
+	draw_text(VIEW_W * 0.5, 304, "> TABLE LOBBY // SGC.WTF");
+	draw_text(VIEW_W * 0.5, 346, "Balance: " + string(balance) + " chips  |  Bet: " + string(currentBet()) + " chips");
 	if (tableMultiplayerEnabled) {
-		draw_text(room_width * 0.5, 386, "Broker: " + tableBrokerStatus + "  |  Lobby: " + tableCurrentLobbyName);
-		var listLeft = room_width * 0.5 - 300;
+		draw_text(VIEW_W * 0.5, 386, "Broker: " + tableBrokerStatus + "  |  Lobby: " + tableCurrentLobbyName);
+		var listLeft = VIEW_W * 0.5 - 300;
 		var listTop = 338;
 		draw_set_halign(fa_left);
 		draw_set_valign(fa_top);
@@ -191,22 +191,22 @@ function drawLocalGameLobby() {
 		} else {
 			draw_set_halign(fa_center);
 			draw_set_color(mutedTextColor);
-			draw_text(room_width * 0.5, 416, "You are seated. Enter the table to play; leave only while your game is idle.");
+			draw_text(VIEW_W * 0.5, 416, "You are seated. Enter the table to play; leave only while your game is idle.");
 		}
-		var createTableLobbyButton = { x: room_width * 0.5 - 276, y: 508, w: 170, h: 52, label: "Create Lobby" };
-		var joinTableLobbyButton = { x: room_width * 0.5 - 86, y: 508, w: 170, h: 52, label: "Join Lobby" };
-		var leaveTableLobbyButton = { x: room_width * 0.5 + 104, y: 508, w: 170, h: 52, label: "Leave Lobby" };
+		var createTableLobbyButton = { x: VIEW_W * 0.5 - 276, y: 508, w: 170, h: 52, label: "Create Lobby" };
+		var joinTableLobbyButton = { x: VIEW_W * 0.5 - 86, y: 508, w: 170, h: 52, label: "Join Lobby" };
+		var leaveTableLobbyButton = { x: VIEW_W * 0.5 + 104, y: 508, w: 170, h: 52, label: "Leave Lobby" };
 		drawTableButton(createTableLobbyButton, false, hoveredControl == "create_table_lobby");
 		drawTableButton(joinTableLobbyButton, false, hoveredControl == "join_table_lobby");
 		drawTableButton(leaveTableLobbyButton, false, hoveredControl == "leave_table_lobby");
 		if (tableCurrentLobbyId != "") {
-			var joinTableButton = { x: room_width * 0.5 - 135, y: 570, w: 270, h: 48, label: "Enter Table" };
+			var joinTableButton = { x: VIEW_W * 0.5 - 135, y: 570, w: 270, h: 48, label: "Enter Table" };
 			drawTableButton(joinTableButton, true, hoveredControl == "join_table");
 		}
 	} else if (selectedGame == GAME_SLOTS || selectedGame == GAME_PACHINKO) {
-		draw_text(room_width * 0.5, 386, "Up to 3 players share this lobby; every board stays visible while play resolves.");
+		draw_text(VIEW_W * 0.5, 386, "Up to 3 players share this lobby; every board stays visible while play resolves.");
 		for (var seatIndex = 0; seatIndex < 3; seatIndex += 1) {
-			var seatLeft = room_width * 0.5 - 306 + seatIndex * 204;
+			var seatLeft = VIEW_W * 0.5 - 306 + seatIndex * 204;
 			var seatTop = 426;
 			var seatName = "Open Seat";
 			if (selectedGame == GAME_SLOTS) seatName = slotSeats[seatIndex].name;
@@ -221,10 +221,10 @@ function drawLocalGameLobby() {
 			draw_text(seatLeft + 92, seatTop + 24, seatName);
 		}
 	} else {
-		draw_text(room_width * 0.5, 394, "Enter when you are ready to sit at this table.");
+		draw_text(VIEW_W * 0.5, 394, "Enter when you are ready to sit at this table.");
 	}
 	if (!tableMultiplayerEnabled) {
-		var joinTableButton = { x: room_width * 0.5 - 135, y: 508, w: 270, h: 60, label: "Join Table" };
+		var joinTableButton = { x: VIEW_W * 0.5 - 135, y: 508, w: 270, h: 60, label: "Join Table" };
 		drawTableButton(joinTableButton, true, hoveredControl == "join_table");
 	}
 }
@@ -526,16 +526,16 @@ function drawHorseGame() {
 }
 
 draw_clear_alpha(backgroundTop, 1);
-for (var stripe = 0; stripe < room_height; stripe += 6) {
-	var blend = stripe / room_height;
+for (var stripe = 0; stripe < VIEW_H; stripe += 6) {
+	var blend = stripe / VIEW_H;
 	draw_set_color(merge_color(backgroundTop, backgroundBottom, blend));
-	draw_rectangle(0, stripe, room_width, stripe + 6, false);
+	draw_rectangle(0, stripe, VIEW_W, stripe + 6, false);
 }
 
 draw_set_color(blackFeltColor);
-draw_rectangle(0, 0, room_width, 68, false);
+draw_rectangle(0, 0, VIEW_W, 68, false);
 draw_set_color(railColor);
-draw_line(0, 68, room_width, 68);
+draw_line(0, 68, VIEW_W, 68);
 
 draw_set_halign(fa_left);
 draw_set_valign(fa_middle);
@@ -545,8 +545,8 @@ draw_text(24, 34, headerTitle);
 draw_set_color(mutedTextColor);
 draw_text(318, 34, "[SGC] balance: " + string(balance) + " chips");
 
-var backButton = { x: room_width - 326, y: 20, w: 128, h: 42, label: tableRoomLocked ? "Tables" : "Back" };
-var mainMenuButton = { x: room_width - 178, y: 20, w: 148, h: 42, label: "Main Menu" };
+var backButton = { x: VIEW_W - 326, y: 20, w: 128, h: 42, label: tableRoomLocked ? "Tables" : "Back" };
+var mainMenuButton = { x: VIEW_W - 178, y: 20, w: 148, h: 42, label: "Main Menu" };
 drawTableButton(backButton, false, hoveredControl == "back");
 drawTableButton(mainMenuButton, false, hoveredControl == "main_menu");
 
@@ -562,10 +562,10 @@ if (tableLobbyOpen) {
 	draw_set_halign(fa_left);
 	draw_set_valign(fa_middle);
 	draw_set_color(railColor);
-	draw_text(24, room_height - 26, statusText);
+	draw_text(24, VIEW_H - 26, statusText);
 	draw_set_halign(fa_right);
 	draw_set_color(mutedTextColor);
-	draw_text(room_width - 24, room_height - 26, "Esc: table lobby  |  Enter: join table");
+	draw_text(VIEW_W - 24, VIEW_H - 26, "Esc: table lobby  |  Enter: join table");
 	exit;
 }
 
@@ -608,7 +608,7 @@ for (var betIndex = 0; betIndex < array_length(betOptions); betIndex += 1) {
 draw_set_halign(fa_left);
 draw_set_valign(fa_middle);
 draw_set_color(railColor);
-draw_text(24, room_height - 26, statusText);
+draw_text(24, VIEW_H - 26, statusText);
 draw_set_halign(fa_right);
 draw_set_color(mutedTextColor);
-draw_text(room_width - 24, room_height - 26, tableRoomLocked ? "Esc: lobby  |  Space/Enter: common actions" : "Esc: menu  |  1-5: tables  |  Space/Enter: common actions");
+draw_text(VIEW_W - 24, VIEW_H - 26, tableRoomLocked ? "Esc: lobby  |  Space/Enter: common actions" : "Esc: menu  |  1-5: tables  |  Space/Enter: common actions");
