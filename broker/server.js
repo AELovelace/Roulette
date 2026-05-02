@@ -62,7 +62,7 @@ function htmlEscape(value) {
     .replace(/'/g, "&#39;");
 }
 
-function writeHtml(res, statusCode, title, bodyHtml) {
+function writeHtml(res, statusCode, title, bodyHtml, extraHtml = "") {
   const page = `<!doctype html>
 <html>
 <head>
@@ -85,10 +85,39 @@ function writeHtml(res, statusCode, title, bodyHtml) {
       ${bodyHtml}
     </div>
   </div>
+  ${extraHtml}
 </body>
 </html>`;
   res.writeHead(statusCode, { "Content-Type": "text/html; charset=utf-8" });
   res.end(page);
+}
+
+function oauthReturnScript() {
+  return `<script>
+(() => {
+  const bounceBackToGame = () => {
+    try {
+      if (window.opener && !window.opener.closed) {
+        try {
+          window.opener.postMessage({ type: "sgc_oauth_complete" }, "*");
+        } catch (error) {}
+        try {
+          window.opener.focus();
+        } catch (error) {}
+        setTimeout(() => {
+          try {
+            window.close();
+          } catch (error) {}
+        }, 150);
+      }
+    } catch (error) {}
+  };
+
+  window.addEventListener("load", () => {
+    setTimeout(bounceBackToGame, 400);
+  });
+})();
+</script>`;
 }
 
 function hasOauthConfig() {
@@ -1700,7 +1729,8 @@ const httpServer = http.createServer((req, res) => {
           res,
           200,
           "Discord OAuth complete",
-          `<p>Your Sadgirlcoin account is now linked${resolvedName ? ` for <code>${htmlEscape(resolvedName)}</code>` : ""}.</p><p>You can return to the game.</p>${resolvedName ? "" : "<p><strong>Note:</strong> The OAuth grant did not return Discord identity fields. Enable <code>identity:read</code> on the app and re-authorize to use your Discord username in-game.</p>"}`
+          `<p>Your Sadgirlcoin account is now linked${resolvedName ? ` for <code>${htmlEscape(resolvedName)}</code>` : ""}.</p><p>Returning to the game automatically...</p>${resolvedName ? "" : "<p><strong>Note:</strong> The OAuth grant did not return Discord identity fields. Enable <code>identity:read</code> on the app and re-authorize to use your Discord username in-game.</p>"}<p><a href="#" onclick="try { if (window.opener && !window.opener.closed) { window.opener.focus(); } } catch (error) {} try { window.close(); } catch (error) {} return false;">Back to the game</a></p>`,
+          oauthReturnScript()
         );
       })
       .catch((error) => {

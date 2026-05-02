@@ -10,7 +10,6 @@
   },
   "defaultScriptType":0,
   "Folders":[
-    {"$GMFolder":"","%Name":"MultiClient","folderPath":"folders/MultiClient.yy","name":"MultiClient","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"Objects","folderPath":"folders/Objects.yy","name":"Objects","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"Rooms","folderPath":"folders/Rooms.yy","name":"Rooms","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"Scripts","folderPath":"folders/Scripts.yy","name":"Scripts","resourceType":"GMFolder","resourceVersion":"2.0",},
@@ -25,7 +24,6 @@
   },
   "name":"Roulette",
   "resources":[
-    {"id":{"name":"MultiClient","path":"extensions/MultiClient/MultiClient.yy",},},
     {"id":{"name":"objMainMenu","path":"objects/objMainMenu/objMainMenu.yy",},},
     {"id":{"name":"objTableGames","path":"objects/objTableGames/objTableGames.yy",},},
     {"id":{"name":"objTableLobby","path":"objects/objTableLobby/objTableLobby.yy",},},
@@ -38,12 +36,6 @@
     {"id":{"name":"RoomPachinko","path":"rooms/RoomPachinko/RoomPachinko.yy",},},
     {"id":{"name":"RoomSlots","path":"rooms/RoomSlots/RoomSlots.yy",},},
     {"id":{"name":"RoomTableLobby","path":"rooms/RoomTableLobby/RoomTableLobby.yy",},},
-    {"id":{"name":"__MultiClientExtensionTest","path":"scripts/__MultiClientExtensionTest/__MultiClientExtensionTest.yy",},},
-    {"id":{"name":"MultiClientGetAdditionalParameters","path":"scripts/MultiClientGetAdditionalParameters/MultiClientGetAdditionalParameters.yy",},},
-    {"id":{"name":"MultiClientGetID","path":"scripts/MultiClientGetID/MultiClientGetID.yy",},},
-    {"id":{"name":"MultiClientGetNumberOfClients","path":"scripts/MultiClientGetNumberOfClients/MultiClientGetNumberOfClients.yy",},},
-    {"id":{"name":"MultiClientGetProxyParameters","path":"scripts/MultiClientGetProxyParameters/MultiClientGetProxyParameters.yy",},},
-    {"id":{"name":"MultiClientGetProxyPath","path":"scripts/MultiClientGetProxyPath/MultiClientGetProxyPath.yy",},},
     {"id":{"name":"Roulette","path":"scripts/Roulette/Roulette.yy",},},
     {"id":{"name":"sprWheel","path":"sprites/sprWheel/sprWheel.yy",},},
   ],
