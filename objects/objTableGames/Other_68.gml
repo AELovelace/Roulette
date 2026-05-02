@@ -49,23 +49,13 @@ switch (eventType) {
 				var message = json_parse(rawMessage);
 				var messageKind = rouletteStructGet(message, "type", "");
 
-					if (messageKind == "welcome") {
-						tablePlayerId = rouletteStructGet(message, "playerId", "");
-						tableBrokerStatus = "Connected as " + tablePlayerId;
-						rouletteSendJson(tableBrokerSocket, {
-							type: "table_watch",
-							game: tableGameKey
-						});
-                        
-						// Check OAuth link status if user has an external_id
-						if (variable_global_exists("sgcExternalId") && global.sgcExternalId != "") {
-							var baseUrl = variable_global_exists("sgcBrokerHttpBase") ? string_trim(global.sgcBrokerHttpBase) : "https://sadgirlsclub.wtf";
-							if (baseUrl == "") baseUrl = "https://sadgirlsclub.wtf";
-							var statusUrl = baseUrl + "/sgc/oauth/status?external_id=" + string_url_encode(global.sgcExternalId);
-							tableOAuthLinkHttpId = http_get(statusUrl);
-							tableOAuthLinkStatus = "checking";
-							show_debug_message("[table] checking OAuth link status for " + global.sgcExternalId);
-						}
+				if (messageKind == "welcome") {
+					tablePlayerId = rouletteStructGet(message, "playerId", "");
+					tableBrokerStatus = "Connected as " + tablePlayerId;
+					rouletteSendJson(tableBrokerSocket, {
+						type: "table_watch",
+						game: tableGameKey
+					});
 				}
 
 				if (messageKind == "signed_in") {

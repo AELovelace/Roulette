@@ -48,15 +48,6 @@ switch (eventType) {
 				if (messageKind == "welcome") {
 					brokerPlayerId = rouletteStructGet(message, "playerId", "");
 					brokerStatus = "Connected as " + brokerPlayerId;
-					   // Check OAuth link status if user has an external_id
-					   if (variable_global_exists("sgcExternalId") && global.sgcExternalId != "") {
-						   var baseUrl = variable_global_exists("sgcBrokerHttpBase") ? string_trim(global.sgcBrokerHttpBase) : "https://sadgirlsclub.wtf";
-						   if (baseUrl == "") baseUrl = "https://sadgirlsclub.wtf";
-						   var statusUrl = baseUrl + "/sgc/oauth/status?external_id=" + string_url_encode(global.sgcExternalId);
-						   oauthLinkHttpId = http_get(statusUrl);
-						   oauthLinkStatus = "checking";
-						   show_debug_message("[wheel] checking OAuth link status for " + global.sgcExternalId);
-					   }
 				}
 
 				if (messageKind == "signed_in") {
