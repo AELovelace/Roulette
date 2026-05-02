@@ -20,12 +20,10 @@ draw_text(room_width * 0.5, 215, subtitleText);
 var signInSelected   = (hoveredButton == "signin")   || (!settingsOpen && !signInOpen && selectedButton == 0);
 var playSelected     = (hoveredButton == "play")     || (!settingsOpen && !signInOpen && selectedButton == 1);
 var settingsSelected = (hoveredButton == "settings") || (!settingsOpen && !signInOpen && selectedButton == 2);
-var signOutSelected  = (hoveredButton == "signout")  || (!settingsOpen && !signInOpen && selectedButton == 3);
 
 var signInFill   = signInSelected   ? buttonHoverColor    : buttonColor;
 var playFill     = playSelected     ? buttonHoverColor    : buttonColor;
 var settingsFill = settingsSelected ? buttonAltHoverColor : buttonAltColor;
-var signOutFill  = signOutSelected  ? buttonAltHoverColor : buttonAltColor;
 
 // Sign-in button (with badge showing current state).
 draw_set_color(signInFill);
@@ -55,14 +53,6 @@ draw_set_color(lineColor);
 draw_roundrect(settingsButton.x, settingsButton.y, settingsButton.x + settingsButton.w, settingsButton.y + settingsButton.h, true);
 draw_set_color(textColor);
 draw_text(settingsButton.x + settingsButton.w * 0.5, settingsButton.y + settingsButton.h * 0.5, settingsButton.label);
-
-// Sign-out button.
-draw_set_color(signOutFill);
-draw_roundrect(signOutButton.x, signOutButton.y, signOutButton.x + signOutButton.w, signOutButton.y + signOutButton.h, false);
-draw_set_color(lineColor);
-draw_roundrect(signOutButton.x, signOutButton.y, signOutButton.x + signOutButton.w, signOutButton.y + signOutButton.h, true);
-draw_set_color(textColor);
-draw_text(signOutButton.x + signOutButton.w * 0.5, signOutButton.y + signOutButton.h * 0.5, signOutButton.label);
 
 draw_set_halign(fa_center);
 draw_set_valign(fa_middle);

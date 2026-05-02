@@ -52,7 +52,7 @@ switch (eventType) {
 					   if (variable_global_exists("sgcExternalId") && global.sgcExternalId != "") {
 						   var baseUrl = variable_global_exists("sgcBrokerHttpBase") ? string_trim(global.sgcBrokerHttpBase) : "https://sadgirlsclub.wtf";
 						   if (baseUrl == "") baseUrl = "https://sadgirlsclub.wtf";
-						   var statusUrl = baseUrl + "/sgc/oauth/status?external_id=" + string(global.sgcExternalId);
+						   var statusUrl = baseUrl + "/sgc/oauth/status?external_id=" + string_url_encode(global.sgcExternalId);
 						   oauthLinkHttpId = http_get(statusUrl);
 						   oauthLinkStatus = "checking";
 						   show_debug_message("[wheel] checking OAuth link status for " + global.sgcExternalId);

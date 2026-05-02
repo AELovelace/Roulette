@@ -69,9 +69,6 @@ lobbyBrowserOpen = multiplayerEnabled;
 playerName = "Player " + string(irandom_range(1000, 9999));
 pendingSpinPlan = undefined;
 activeSpinId = -1;
-oauthLinkStatus = "unchecked";
-oauthLinkCheckedAt = 0;
-oauthLinkHttpId = -1;
 
 tableX = 60;
 tableY = 470;
