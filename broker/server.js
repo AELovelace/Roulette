@@ -1662,31 +1662,31 @@ const httpServer = http.createServer((req, res) => {
           return;
         }
 
-        if (SGC_DEBUG_SIGNIN) {
-          console.log("[sgc][oauth] token payload keys:", Object.keys(parsed || {}));
-          console.log("[sgc][oauth] token name candidates:", {
-            discord_username: parsed?.discord_username,
-            user_discord_username: parsed?.user?.discord_username,
-            discord_name: parsed?.discord_name,
-            user_discord_name: parsed?.user?.discord_name,
-            user_discord_id: parsed?.user?.discord_id,
-            user_discord_username: parsed?.user?.discord_username,
-            user_display_name: parsed?.user?.display_name,
-            user_global_name: parsed?.user?.global_name,
-            user_username: parsed?.user?.username,
-            discord_user_display_name: parsed?.discord_user?.display_name,
-            discord_user_global_name: parsed?.discord_user?.global_name,
-            discord_user_username: parsed?.discord_user?.username,
-            account_display_name: parsed?.account?.display_name,
-            account_username: parsed?.account?.username,
-            profile_display_name: parsed?.profile?.display_name,
-            profile_username: parsed?.profile?.username,
-            display_name: parsed?.display_name,
-            username: parsed?.username,
-            external_name: parsed?.external_name,
-            link_discord_name: parsed?.link?.discord_name,
-          });
-        }
+        // Always log the full token response when OAuth completes
+        console.log("[sgc][oauth] FULL TOKEN RESPONSE:", JSON.stringify(parsed, null, 2));
+        console.log("[sgc][oauth] token payload keys:", Object.keys(parsed || {}));
+        console.log("[sgc][oauth] token name candidates:", {
+          discord_username: parsed?.discord_username,
+          user_discord_username: parsed?.user?.discord_username,
+          discord_name: parsed?.discord_name,
+          user_discord_name: parsed?.user?.discord_name,
+          user_discord_id: parsed?.user?.discord_id,
+          user_discord_username: parsed?.user?.discord_username,
+          user_display_name: parsed?.user?.display_name,
+          user_global_name: parsed?.user?.global_name,
+          user_username: parsed?.user?.username,
+          discord_user_display_name: parsed?.discord_user?.display_name,
+          discord_user_global_name: parsed?.discord_user?.global_name,
+          discord_user_username: parsed?.discord_user?.username,
+          account_display_name: parsed?.account?.display_name,
+          account_username: parsed?.account?.username,
+          profile_display_name: parsed?.profile?.display_name,
+          profile_username: parsed?.profile?.username,
+          display_name: parsed?.display_name,
+          username: parsed?.username,
+          external_name: parsed?.external_name,
+          link_discord_name: parsed?.link?.discord_name,
+        });
 
         var resolvedName = resolveDisplayNameFromOauthPayload(parsed, pending.externalName);
         if (!resolvedName) {
