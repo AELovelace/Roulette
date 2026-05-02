@@ -6,10 +6,18 @@ switch (eventType) {
 			if ((async_load[? "succeeded"]) == 1) {
 				tableBrokerConnected = true;
 				tableBrokerStatus = "Connected";
-				rouletteSendJson(tableBrokerSocket, {
+				var tableJoinPayload = {
 					type: "join",
-					name: tablePlayerName
-				});
+					name: tablePlayerName,
+					external_id: variable_global_exists("sgcExternalId") ? global.sgcExternalId : "",
+					link_code:   variable_global_exists("sgcLinkCode")    ? global.sgcLinkCode    : "",
+					signed_in:   variable_global_exists("sgcSignedIn")    ? global.sgcSignedIn    : false
+				};
+				if (variable_global_exists("sgcDisplayName") && global.sgcDisplayName != "") {
+					tableJoinPayload.name = global.sgcDisplayName;
+					tablePlayerName = global.sgcDisplayName;
+				}
+				rouletteSendJson(tableBrokerSocket, tableJoinPayload);
 				rouletteSendJson(tableBrokerSocket, {
 					type: "table_watch",
 					game: tableGameKey

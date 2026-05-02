@@ -1,6 +1,7 @@
 const WebSocket = require("ws");
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;
+const HOST = process.env.HOST || "0.0.0.0";
 const wheelOrder = [
   0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23,
   10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
@@ -1200,7 +1201,7 @@ function startSpin(requestingPlayer) {
   }, durationMs);
 }
 
-const wss = new WebSocket.Server({ port: PORT });
+const wss = new WebSocket.Server({ host: HOST, port: PORT });
 
 wss.on("connection", (socket) => {
   const player = {
@@ -1212,6 +1213,9 @@ wss.on("connection", (socket) => {
     lastPayout: 0,
     lobbyId: "",
     tableLobbyId: "",
+    sgcExternalId: "",
+    sgcLinkCode: "",
+    sgcSignedIn: false,
     socket,
   };
   state.players.set(player.id, player);
@@ -1232,8 +1236,27 @@ wss.on("connection", (socket) => {
       return;
     }
 
-    if (message.type === "join" && typeof message.name === "string" && message.name.trim()) {
-      player.name = message.name.trim().slice(0, 24);
+    if (message.type === "join") {
+      if (typeof message.name === "string" && message.name.trim()) {
+        player.name = message.name.trim().slice(0, 24);
+      }
+      if (typeof message.external_id === "string") {
+        player.sgcExternalId = message.external_id.trim().slice(0, 64);
+      }
+      if (typeof message.link_code === "string") {
+        player.sgcLinkCode = message.link_code.trim().slice(0, 16);
+      }
+      player.sgcSignedIn = !!message.signed_in && !!player.sgcExternalId;
+      console.log(
+        `[sgc] join id=${player.id} name=${player.name} signed_in=${player.sgcSignedIn} external_id=${player.sgcExternalId || "-"} link_code=${player.sgcLinkCode ? "yes" : "no"}`
+      );
+      sendJson(socket, {
+        type: "signed_in",
+        playerId: player.id,
+        signedIn: player.sgcSignedIn,
+        externalId: player.sgcExternalId || "",
+        displayName: player.name
+      });
       broadcastState();
       for (const game of tableGames) broadcastTableGame(game);
       return;
@@ -1454,4 +1477,4 @@ wss.on("connection", (socket) => {
   });
 });
 
-console.log(`Roulette broker listening on ws://127.0.0.1:${PORT}`);
+console.log(`Roulette broker listening on ws://${HOST}:${PORT}`);

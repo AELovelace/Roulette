@@ -7,10 +7,18 @@ switch (eventType) {
 				brokerConnected = true;
 				brokerPhase = "betting";
 				brokerStatus = "Connected";
-				rouletteSendJson(brokerSocket, {
+				var joinPayload = {
 					type: "join",
-					name: playerName
-				});
+					name: playerName,
+					external_id: variable_global_exists("sgcExternalId") ? global.sgcExternalId : "",
+					link_code:   variable_global_exists("sgcLinkCode")    ? global.sgcLinkCode    : "",
+					signed_in:   variable_global_exists("sgcSignedIn")    ? global.sgcSignedIn    : false
+				};
+				if (variable_global_exists("sgcDisplayName") && global.sgcDisplayName != "") {
+					joinPayload.name = global.sgcDisplayName;
+					playerName = global.sgcDisplayName;
+				}
+				rouletteSendJson(brokerSocket, joinPayload);
 			} else {
 				brokerConnected = false;
 				brokerStatus = "Broker unavailable";

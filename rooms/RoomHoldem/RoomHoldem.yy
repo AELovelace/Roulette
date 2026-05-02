@@ -17,8 +17,8 @@
   ],
   "name":"RoomHoldem",
   "parent":{
-    "name":"Roulette",
-    "path":"Roulette.yyp",
+    "name":"Objects",
+    "path":"folders/Objects.yy",
   },
   "parentRoom":null,
   "physicsSettings":{

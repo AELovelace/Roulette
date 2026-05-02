@@ -2,7 +2,14 @@ titleText = "SADGIRLSCLUB.WTF";
 subtitleText = "DollOS V-3.0 // LumiGames Casino";
 statusText = "[SYS] choose a node.";
 settingsOpen = false;
+signInOpen = false;
 selectedButton = 0;
+
+// Persistent SGC identity globals (consumed by objWheel / objTableGames on connect).
+if (!variable_global_exists("sgcSignedIn"))    global.sgcSignedIn    = false;
+if (!variable_global_exists("sgcDisplayName")) global.sgcDisplayName = "Player " + string(irandom_range(1000, 9999));
+if (!variable_global_exists("sgcExternalId")) global.sgcExternalId  = "";
+if (!variable_global_exists("sgcLinkCode"))    global.sgcLinkCode    = "";
 
 backgroundTop = make_color_rgb(5, 6, 10);
 backgroundBottom = make_color_rgb(34, 15, 38);
@@ -11,19 +18,27 @@ lineColor = make_color_rgb(93, 228, 207);
 buttonColor = make_color_rgb(30, 24, 43);
 buttonHoverColor = make_color_rgb(213, 43, 102);
 buttonAltColor = make_color_rgb(18, 25, 34);
-buttonAltHoverColor = make_color_rgb(42, 64, 72);
-textColor = c_white;
+buttonAltHoverColor = make_col(buttonHeight * 1.5) - buttonGap;
 
-buttonWidth = 320;
-buttonHeight = 64;
-buttonGap = 24;
-buttonX = room_width * 0.5 - (buttonWidth * 0.5);
-buttonY = room_height * 0.5 - buttonHeight;
-
-playButton = {
+signInButton = {
 	x: buttonX,
 	y: buttonY,
 	w: buttonWidth,
+	h: buttonHeight,
+	label: "Sign In with Sadgirlcoin"
+};
+
+playButton = {
+	x: buttonX,
+	y: buttonY + buttonHeight + buttonGap,
+	w: buttonWidth,
+	h: buttonHeight,
+	label: "Table Games"
+};
+
+settingsButton = {
+	x: buttonX,
+	y: buttonY + (buttonHeight + buttonGap) * 2
 	h: buttonHeight,
 	label: "Table Games"
 };
@@ -41,6 +56,40 @@ settingsPanel = {
 	y1: 150,
 	x2: room_width * 0.5 + 290,
 	y2: room_height - 130
+};
+
+// Sign In modal layout.
+signInPanel = {
+	x1: room_width * 0.5 - 320,
+	y1: 140,
+	x2: room_width * 0.5 + 320,
+	y2: room_height - 140
+};
+
+signInFields = [
+	{ key: "name",     label: "Display Name",                          value: global.sgcDisplayName, max: 24 },
+	{ key: "external", label: "external_id (your app key)",            value: global.sgcExternalId,  max: 64 },
+	{ key: "code",     label: "Link Code (optional, e.g. H7K-4QZ)",    value: global.sgcLinkCode,    max: 16 }
+];
+signInActiveField = 0;
+signInRowHeight = 78;
+signInFieldX = signInPanel.x1 + 40;
+signInFieldW = (signInPanel.x2 - signInPanel.x1) - 80;
+signInFirstRowY = signInPanel.y1 + 130;
+
+signInConfirmButton = {
+	x: room_width * 0.5 - 220,
+	y: signInPanel.y2 - 90,
+	w: 200,
+	h: 56,
+	label: "Confirm"
+};
+signInCancelButton = {
+	x: room_width * 0.5 + 20,
+	y: signInPanel.y2 - 90,
+	w: 200,
+	h: 56,
+	label: "Cancel"
 };
 
 settingsCloseButton = {

@@ -8,20 +8,37 @@ for (var stripe = 0; stripe < room_height; stripe += 6) {
 
 draw_set_alpha(0.92);
 draw_set_color(panelColor);
-draw_roundrect(room_width * 0.5 - 250, 120, room_width * 0.5 + 250, room_height - 120, false);
+draw_roundrect(room_width * 0.5 - 260, 110, room_width * 0.5 + 260, room_height - 110, false);
 draw_set_alpha(1);
 
 draw_set_halign(fa_center);
 draw_set_valign(fa_middle);
 draw_set_color(lineColor);
-draw_text(room_width * 0.5, 185, titleText);
-draw_text(room_width * 0.5, 225, subtitleText);
+draw_text(room_width * 0.5, 175, titleText);
+draw_text(room_width * 0.5, 215, subtitleText);
 
-var playSelected = (hoveredButton == "play") || (!settingsOpen && selectedButton == 0);
-var settingsSelected = (hoveredButton == "settings") || (!settingsOpen && selectedButton == 1);
-var playFill = playSelected ? buttonHoverColor : buttonColor;
+var signInSelected   = (hoveredButton == "signin")   || (!settingsOpen && !signInOpen && selectedButton == 0);
+var playSelected     = (hoveredButton == "play")     || (!settingsOpen && !signInOpen && selectedButton == 1);
+var settingsSelected = (hoveredButton == "settings") || (!settingsOpen && !signInOpen && selectedButton == 2);
+
+var signInFill   = signInSelected   ? buttonHoverColor    : buttonColor;
+var playFill     = playSelected     ? buttonHoverColor    : buttonColor;
 var settingsFill = settingsSelected ? buttonAltHoverColor : buttonAltColor;
 
+// Sign-in button (with badge showing current state).
+draw_set_color(signInFill);
+draw_roundrect(signInButton.x, signInButton.y, signInButton.x + signInButton.w, signInButton.y + signInButton.h, false);
+draw_set_color(lineColor);
+draw_roundrect(signInButton.x, signInButton.y, signInButton.x + signInButton.w, signInButton.y + signInButton.h, true);
+draw_set_color(textColor);
+draw_text(signInButton.x + signInButton.w * 0.5, signInButton.y + signInButton.h * 0.5 - 8, signInButton.label);
+draw_set_color(global.sgcSignedIn ? lineColor : make_color_rgb(180, 180, 180));
+var badge = global.sgcSignedIn
+	? "linked: " + global.sgcExternalId
+	: "guest mode (click to link)";
+draw_text(signInButton.x + signInButton.w * 0.5, signInButton.y + signInButton.h * 0.5 + 14, badge);
+
+// Play button.
 draw_set_color(playFill);
 draw_roundrect(playButton.x, playButton.y, playButton.x + playButton.w, playButton.y + playButton.h, false);
 draw_set_color(lineColor);
@@ -29,6 +46,7 @@ draw_roundrect(playButton.x, playButton.y, playButton.x + playButton.w, playButt
 draw_set_color(textColor);
 draw_text(playButton.x + playButton.w * 0.5, playButton.y + playButton.h * 0.5, playButton.label);
 
+// Settings button.
 draw_set_color(settingsFill);
 draw_roundrect(settingsButton.x, settingsButton.y, settingsButton.x + settingsButton.w, settingsButton.y + settingsButton.h, false);
 draw_set_color(lineColor);
@@ -39,8 +57,8 @@ draw_text(settingsButton.x + settingsButton.w * 0.5, settingsButton.y + settings
 draw_set_halign(fa_center);
 draw_set_valign(fa_middle);
 draw_set_color(lineColor);
-draw_text(room_width * 0.5, settingsButton.y + settingsButton.h + 60, statusText);
-draw_text(room_width * 0.5, room_height - 90, "> ARROWS/WASD + ENTER // ESC where available");
+draw_text(room_width * 0.5, settingsButton.y + settingsButton.h + 50, statusText);
+draw_text(room_width * 0.5, room_height - 78, "> ARROWS/WASD + ENTER // ESC where available");
 
 if (settingsOpen) {
 	draw_set_alpha(0.68);
@@ -71,4 +89,64 @@ if (settingsOpen) {
 
 	draw_set_color(lineColor);
 	draw_text(room_width * 0.5, settingsCloseButton.y + settingsCloseButton.h + 46, "Press Esc to close.");
+}
+
+if (signInOpen) {
+	draw_set_alpha(0.78);
+	draw_set_color(c_black);
+	draw_rectangle(0, 0, room_width, room_height, false);
+	draw_set_alpha(1);
+
+	draw_set_color(make_color_rgb(22, 14, 32));
+	draw_roundrect(signInPanel.x1, signInPanel.y1, signInPanel.x2, signInPanel.y2, false);
+	draw_set_color(lineColor);
+	draw_roundrect(signInPanel.x1, signInPanel.y1, signInPanel.x2, signInPanel.y2, true);
+
+	draw_set_halign(fa_center);
+	draw_set_valign(fa_middle);
+	draw_set_color(textColor);
+	draw_text(room_width * 0.5, signInPanel.y1 + 50, "SIGN IN // SADGIRLCOIN");
+	draw_set_color(lineColor);
+	draw_text(room_width * 0.5, signInPanel.y1 + 88, "Tab to switch fields. Enter to confirm, Esc to cancel.");
+
+	draw_set_halign(fa_left);
+	for (var i = 0; i < array_length(signInFields); i++) {
+		var rowY = signInFirstRowY + i * signInRowHeight;
+		var field = signInFields[i];
+		var displayValue = (i == signInActiveField) ? keyboard_string : field.value;
+		var isActive = (i == signInActiveField);
+
+		draw_set_color(lineColor);
+		draw_text(signInFieldX, rowY, field.label);
+
+		var fieldFill = isActive ? make_color_rgb(48, 26, 56) : make_color_rgb(28, 18, 36);
+		draw_set_color(fieldFill);
+		draw_roundrect(signInFieldX, rowY + 22, signInFieldX + signInFieldW, rowY + 64, false);
+		draw_set_color(isActive ? buttonHoverColor : lineColor);
+		draw_roundrect(signInFieldX, rowY + 22, signInFieldX + signInFieldW, rowY + 64, true);
+
+		draw_set_color(textColor);
+		var caret = (isActive && (current_time div 500) mod 2 == 0) ? "_" : "";
+		draw_text(signInFieldX + 14, rowY + 43, displayValue + caret);
+	}
+
+	draw_set_halign(fa_center);
+	draw_set_valign(fa_middle);
+
+	var confirmFill = (hoveredButton == "signin_confirm") ? buttonHoverColor    : buttonColor;
+	var cancelFill  = (hoveredButton == "signin_cancel")  ? buttonAltHoverColor : buttonAltColor;
+
+	draw_set_color(confirmFill);
+	draw_roundrect(signInConfirmButton.x, signInConfirmButton.y, signInConfirmButton.x + signInConfirmButton.w, signInConfirmButton.y + signInConfirmButton.h, false);
+	draw_set_color(lineColor);
+	draw_roundrect(signInConfirmButton.x, signInConfirmButton.y, signInConfirmButton.x + signInConfirmButton.w, signInConfirmButton.y + signInConfirmButton.h, true);
+	draw_set_color(textColor);
+	draw_text(signInConfirmButton.x + signInConfirmButton.w * 0.5, signInConfirmButton.y + signInConfirmButton.h * 0.5, signInConfirmButton.label);
+
+	draw_set_color(cancelFill);
+	draw_roundrect(signInCancelButton.x, signInCancelButton.y, signInCancelButton.x + signInCancelButton.w, signInCancelButton.y + signInCancelButton.h, false);
+	draw_set_color(lineColor);
+	draw_roundrect(signInCancelButton.x, signInCancelButton.y, signInCancelButton.x + signInCancelButton.w, signInCancelButton.y + signInCancelButton.h, true);
+	draw_set_color(textColor);
+	draw_text(signInCancelButton.x + signInCancelButton.w * 0.5, signInCancelButton.y + signInCancelButton.h * 0.5, signInCancelButton.label);
 }
