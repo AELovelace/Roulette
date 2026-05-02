@@ -91,6 +91,16 @@ function hasOauthConfig() {
   return !!(SGC_BASE_URL && SGC_API_KEY && SGC_OAUTH_CLIENT_ID && SGC_OAUTH_REDIRECT_URI);
 }
 
+function oauthErrorDetail(error) {
+  const top = error?.message ? String(error.message) : "unknown error";
+  const causeCode = error?.cause?.code ? String(error.cause.code) : "";
+  const causeMsg = error?.cause?.message ? String(error.cause.message) : "";
+  if (causeCode && causeMsg) return `${top} (${causeCode}: ${causeMsg})`;
+  if (causeCode) return `${top} (${causeCode})`;
+  if (causeMsg) return `${top} (${causeMsg})`;
+  return top;
+}
+
 function isOauthLinkedExternalId(externalId) {
   const key = String(externalId || "").trim();
   if (!key) return false;
@@ -1388,7 +1398,14 @@ const httpServer = http.createServer((req, res) => {
       })
       .catch((error) => {
         oauthPendingByState.delete(stateKey);
-        writeHtml(res, 502, "OAuth start failed", `<p>${htmlEscape(error.message)}</p>`);
+        const detail = oauthErrorDetail(error);
+        console.error(`[oauth] start fetch error to ${SGC_BASE_URL}/v1/links/oauth/start: ${detail}`);
+        writeHtml(
+          res,
+          502,
+          "OAuth start failed",
+          `<p>${htmlEscape(detail)}</p><p>Check broker egress/DNS/TLS to <code>${htmlEscape(SGC_BASE_URL)}</code>.</p>`
+        );
       });
     return;
   }
@@ -1454,7 +1471,14 @@ const httpServer = http.createServer((req, res) => {
         );
       })
       .catch((error) => {
-        writeHtml(res, 502, "OAuth sign-in failed", `<p>${htmlEscape(error.message)}</p>`);
+        const detail = oauthErrorDetail(error);
+        console.error(`[oauth] token fetch error to ${SGC_BASE_URL}/oauth/token: ${detail}`);
+        writeHtml(
+          res,
+          502,
+          "OAuth sign-in failed",
+          `<p>${htmlEscape(detail)}</p><p>Check broker egress/DNS/TLS to <code>${htmlEscape(SGC_BASE_URL)}</code>.</p>`
+        );
       });
     return;
   }
@@ -1796,6 +1820,10 @@ httpServer.listen(PORT, HOST, () => {
   console.log(`[broker] listening on ws://${HOST}:${PORT}`);
   console.log(`[broker] webhook endpoint: http://${HOST}:${PORT}/sgc/webhook`);
   console.log(`[broker] oauth start endpoint: http://${HOST}:${PORT}/sgc/oauth/start?external_id=...&external_name=...`);
+  if (hasOauthConfig()) {
+    console.log(`[broker] oauth upstream: ${SGC_BASE_URL}`);
+    console.log(`[broker] oauth redirect_uri: ${SGC_OAUTH_REDIRECT_URI}`);
+  }
   if (!SGC_WEBHOOK_SECRET) {
     console.warn(`[broker] WARNING: SGC_WEBHOOK_SECRET not set; webhook signatures will not validate`);
   }
