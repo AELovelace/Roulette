@@ -5,6 +5,11 @@ const crypto = require("crypto");
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;
 const HOST = process.env.HOST || "0.0.0.0";
 const SGC_WEBHOOK_SECRET = process.env.SGC_WEBHOOK_SECRET || "";
+const SGC_BASE_URL = (process.env.SGC_BASE_URL || "").replace(/\/$/, "");
+const SGC_API_KEY = process.env.SGC_API_KEY || "";
+const SGC_OAUTH_CLIENT_ID = process.env.SGC_OAUTH_CLIENT_ID || "";
+const SGC_OAUTH_REDIRECT_URI = process.env.SGC_OAUTH_REDIRECT_URI || "";
+const SGC_OAUTH_SCOPE = process.env.SGC_OAUTH_SCOPE || "balance:read coins:debit coins:credit";
 const wheelOrder = [
   0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23,
   10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
@@ -20,6 +25,102 @@ const state = {
   nextTableLobbyId: 1,
   nextSpinId: 1,
 };
+
+const oauthPendingByState = new Map();
+const oauthLinkedByExternalId = new Map();
+const oauthPendingTtlMs = 10 * 60 * 1000;
+
+function base64Url(bufferValue) {
+  return bufferValue.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function buildPkcePair() {
+  const verifier = base64Url(crypto.randomBytes(32));
+  const challenge = base64Url(crypto.createHash("sha256").update(verifier, "utf8").digest());
+  return { verifier, challenge };
+}
+
+function cleanupOauthPending() {
+  const now = Date.now();
+  for (const [stateKey, pending] of oauthPendingByState.entries()) {
+    if ((now - pending.createdAt) > oauthPendingTtlMs) {
+      oauthPendingByState.delete(stateKey);
+    }
+  }
+}
+
+function htmlEscape(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function writeHtml(res, statusCode, title, bodyHtml) {
+  const page = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${htmlEscape(title)}</title>
+  <style>
+    body { margin: 0; font-family: Segoe UI, Tahoma, sans-serif; background: #090b11; color: #f2eef6; }
+    .wrap { max-width: 680px; margin: 0 auto; padding: 48px 24px; }
+    .card { background: #151626; border: 1px solid #2f3450; border-radius: 14px; padding: 24px; }
+    h1 { margin: 0 0 10px 0; font-size: 24px; }
+    p { line-height: 1.5; color: #d2d6e8; }
+    code { background: #232744; padding: 3px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>${htmlEscape(title)}</h1>
+      ${bodyHtml}
+    </div>
+  </div>
+</body>
+</html>`;
+  res.writeHead(statusCode, { "Content-Type": "text/html; charset=utf-8" });
+  res.end(page);
+}
+
+function hasOauthConfig() {
+  return !!(SGC_BASE_URL && SGC_API_KEY && SGC_OAUTH_CLIENT_ID && SGC_OAUTH_REDIRECT_URI);
+}
+
+function isOauthLinkedExternalId(externalId) {
+  const key = String(externalId || "").trim();
+  if (!key) return false;
+  const record = oauthLinkedByExternalId.get(key);
+  if (!record) return false;
+  return (Date.now() - record.linkedAt) <= (24 * 60 * 60 * 1000);
+}
+
+function markOauthLinked(externalId, displayName) {
+  const key = String(externalId || "").trim();
+  if (!key) return;
+  oauthLinkedByExternalId.set(key, {
+    linkedAt: Date.now(),
+    displayName: String(displayName || ""),
+  });
+
+  for (const player of state.players.values()) {
+    if (player.sgcExternalId === key) {
+      player.sgcSignedIn = true;
+      sendJson(player.socket, {
+        type: "signed_in",
+        playerId: player.id,
+        signedIn: true,
+        externalId: player.sgcExternalId,
+        displayName: player.name,
+      });
+    }
+  }
+  broadcastState();
+}
 
 const tableGames = new Set(["slots", "pachinko", "blackjack", "holdem", "horse"]);
 const slotSymbolCount = 6;
@@ -1206,7 +1307,172 @@ function startSpin(requestingPlayer) {
 
 // HTTP server for webhooks + WebSocket upgrade
 const httpServer = http.createServer((req, res) => {
-  if (req.method === "POST" && req.url === "/sgc/webhook") {
+  const requestUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+  const pathname = requestUrl.pathname;
+
+  if (req.method === "GET" && pathname === "/sgc/oauth/start") {
+    cleanupOauthPending();
+    if (!hasOauthConfig()) {
+      writeHtml(
+        res,
+        503,
+        "Discord OAuth unavailable",
+        "<p>Broker OAuth is not configured. Set <code>SGC_BASE_URL</code>, <code>SGC_API_KEY</code>, <code>SGC_OAUTH_CLIENT_ID</code>, and <code>SGC_OAUTH_REDIRECT_URI</code>.</p>"
+      );
+      return;
+    }
+
+    const externalId = (requestUrl.searchParams.get("external_id") || "").trim().slice(0, 64);
+    const externalName = (requestUrl.searchParams.get("external_name") || "Player").trim().slice(0, 24);
+    if (!externalId) {
+      writeHtml(res, 400, "Missing identity", "<p>Missing required query parameter <code>external_id</code>.</p>");
+      return;
+    }
+
+    const stateKey = base64Url(crypto.randomBytes(24));
+    const pkce = buildPkcePair();
+    oauthPendingByState.set(stateKey, {
+      externalId,
+      externalName,
+      verifier: pkce.verifier,
+      createdAt: Date.now(),
+    });
+
+    const payload = {
+      client_id: SGC_OAUTH_CLIENT_ID,
+      redirect_uri: SGC_OAUTH_REDIRECT_URI,
+      scope: SGC_OAUTH_SCOPE,
+      state: stateKey,
+      code_challenge: pkce.challenge,
+      code_challenge_method: "S256",
+      external_id: externalId,
+      external_name: externalName,
+    };
+
+    fetch(`${SGC_BASE_URL}/v1/links/oauth/start`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SGC_API_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(payload),
+    })
+      .then(async (oauthRes) => {
+        const bodyText = await oauthRes.text();
+        let parsed = null;
+        if (bodyText) {
+          try {
+            parsed = JSON.parse(bodyText);
+          } catch (error) {
+            parsed = null;
+          }
+        }
+
+        if (!oauthRes.ok) {
+          oauthPendingByState.delete(stateKey);
+          const message = htmlEscape(parsed?.error?.message || `OAuth start failed (${oauthRes.status}).`);
+          writeHtml(res, 502, "OAuth start failed", `<p>${message}</p>`);
+          return;
+        }
+
+        const authorizeUrl = parsed?.oauth?.authorize_url;
+        if (!authorizeUrl) {
+          oauthPendingByState.delete(stateKey);
+          writeHtml(res, 502, "OAuth start failed", "<p>Sadgirlcoin API did not return an authorize URL.</p>");
+          return;
+        }
+
+        res.writeHead(302, { Location: authorizeUrl });
+        res.end();
+      })
+      .catch((error) => {
+        oauthPendingByState.delete(stateKey);
+        writeHtml(res, 502, "OAuth start failed", `<p>${htmlEscape(error.message)}</p>`);
+      });
+    return;
+  }
+
+  if (req.method === "GET" && pathname === "/sgc/oauth/callback") {
+    cleanupOauthPending();
+    if (!hasOauthConfig()) {
+      writeHtml(res, 503, "Discord OAuth unavailable", "<p>Broker OAuth is not configured.</p>");
+      return;
+    }
+
+    const code = (requestUrl.searchParams.get("code") || "").trim();
+    const stateKey = (requestUrl.searchParams.get("state") || "").trim();
+    const pending = oauthPendingByState.get(stateKey);
+
+    if (!code || !pending) {
+      writeHtml(res, 400, "Invalid OAuth callback", "<p>Missing or expired OAuth state. Start sign-in again from the game.</p>");
+      return;
+    }
+
+    oauthPendingByState.delete(stateKey);
+
+    const tokenPayload = {
+      grant_type: "authorization_code",
+      client_id: SGC_OAUTH_CLIENT_ID,
+      redirect_uri: SGC_OAUTH_REDIRECT_URI,
+      code,
+      code_verifier: pending.verifier,
+    };
+
+    fetch(`${SGC_BASE_URL}/oauth/token`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SGC_API_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(tokenPayload),
+    })
+      .then(async (tokenRes) => {
+        const bodyText = await tokenRes.text();
+        let parsed = null;
+        if (bodyText) {
+          try {
+            parsed = JSON.parse(bodyText);
+          } catch (error) {
+            parsed = null;
+          }
+        }
+
+        if (!tokenRes.ok) {
+          const message = htmlEscape(parsed?.error?.message || `Token exchange failed (${tokenRes.status}).`);
+          writeHtml(res, 502, "OAuth sign-in failed", `<p>${message}</p>`);
+          return;
+        }
+
+        markOauthLinked(pending.externalId, pending.externalName);
+        writeHtml(
+          res,
+          200,
+          "Discord OAuth complete",
+          `<p>Your Sadgirlcoin account is now linked for <code>${htmlEscape(pending.externalName)}</code>.</p><p>You can return to the game and press Confirm.</p>`
+        );
+      })
+      .catch((error) => {
+        writeHtml(res, 502, "OAuth sign-in failed", `<p>${htmlEscape(error.message)}</p>`);
+      });
+    return;
+  }
+
+  if (req.method === "GET" && pathname === "/sgc/oauth/status") {
+    const externalId = (requestUrl.searchParams.get("external_id") || "").trim();
+    const linked = isOauthLinkedExternalId(externalId);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({
+      ok: true,
+      linked,
+      external_id: externalId,
+      linked_at: linked ? oauthLinkedByExternalId.get(externalId).linkedAt : null,
+    }));
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/sgc/webhook") {
     let body = "";
     req.on("data", (chunk) => {
       body += chunk.toString("utf8");
@@ -1294,9 +1560,10 @@ wss.on("connection", (socket) => {
       if (typeof message.link_code === "string") {
         player.sgcLinkCode = message.link_code.trim().slice(0, 16);
       }
-      player.sgcSignedIn = !!message.signed_in && !!player.sgcExternalId;
+      const oauthLinked = isOauthLinkedExternalId(player.sgcExternalId);
+      player.sgcSignedIn = (!!message.signed_in && !!player.sgcExternalId) || oauthLinked;
       console.log(
-        `[sgc] join id=${player.id} name=${player.name} signed_in=${player.sgcSignedIn} external_id=${player.sgcExternalId || "-"} link_code=${player.sgcLinkCode ? "yes" : "no"}`
+        `[sgc] join id=${player.id} name=${player.name} signed_in=${player.sgcSignedIn} external_id=${player.sgcExternalId || "-"} link_code=${player.sgcLinkCode ? "yes" : "no"} oauth=${oauthLinked ? "yes" : "no"}`
       );
       sendJson(socket, {
         type: "signed_in",
@@ -1528,7 +1795,11 @@ wss.on("connection", (socket) => {
 httpServer.listen(PORT, HOST, () => {
   console.log(`[broker] listening on ws://${HOST}:${PORT}`);
   console.log(`[broker] webhook endpoint: http://${HOST}:${PORT}/sgc/webhook`);
+  console.log(`[broker] oauth start endpoint: http://${HOST}:${PORT}/sgc/oauth/start?external_id=...&external_name=...`);
   if (!SGC_WEBHOOK_SECRET) {
     console.warn(`[broker] WARNING: SGC_WEBHOOK_SECRET not set; webhook signatures will not validate`);
+  }
+  if (!hasOauthConfig()) {
+    console.warn("[broker] WARNING: OAuth env vars missing; Discord OAuth route will be unavailable");
   }
 });

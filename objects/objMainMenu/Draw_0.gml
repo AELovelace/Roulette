@@ -107,7 +107,7 @@ if (signInOpen) {
 	draw_set_color(textColor);
 	draw_text(room_width * 0.5, signInPanel.y1 + 50, "SIGN IN // SADGIRLCOIN");
 	draw_set_color(lineColor);
-	draw_text(room_width * 0.5, signInPanel.y1 + 88, "Tab to switch fields. Enter to confirm, Esc to cancel.");
+	draw_text(room_width * 0.5, signInPanel.y1 + 88, "Discord OAuth first. Legacy link code remains as fallback.");
 
 	draw_set_halign(fa_left);
 	for (var i = 0; i < array_length(signInFields); i++) {
@@ -133,8 +133,16 @@ if (signInOpen) {
 	draw_set_halign(fa_center);
 	draw_set_valign(fa_middle);
 
+	var oauthFill = (hoveredButton == "signin_oauth") ? buttonHoverColor : make_color_rgb(40, 30, 64);
 	var confirmFill = (hoveredButton == "signin_confirm") ? buttonHoverColor    : buttonColor;
 	var cancelFill  = (hoveredButton == "signin_cancel")  ? buttonAltHoverColor : buttonAltColor;
+
+	draw_set_color(oauthFill);
+	draw_roundrect(signInOAuthButton.x, signInOAuthButton.y, signInOAuthButton.x + signInOAuthButton.w, signInOAuthButton.y + signInOAuthButton.h, false);
+	draw_set_color(lineColor);
+	draw_roundrect(signInOAuthButton.x, signInOAuthButton.y, signInOAuthButton.x + signInOAuthButton.w, signInOAuthButton.y + signInOAuthButton.h, true);
+	draw_set_color(textColor);
+	draw_text(signInOAuthButton.x + signInOAuthButton.w * 0.5, signInOAuthButton.y + signInOAuthButton.h * 0.5, signInOAuthButton.label);
 
 	draw_set_color(confirmFill);
 	draw_roundrect(signInConfirmButton.x, signInConfirmButton.y, signInConfirmButton.x + signInConfirmButton.w, signInConfirmButton.y + signInConfirmButton.h, false);

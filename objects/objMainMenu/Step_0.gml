@@ -2,6 +2,19 @@ var mouseXPos = device_mouse_x_to_gui(0);
 var mouseYPos = device_mouse_y_to_gui(0);
 hoveredButton = "";
 
+function menuUrlComponent(_value) {
+	var out = string(_value);
+	out = string_replace_all(out, "%", "%25");
+	out = string_replace_all(out, " ", "%20");
+	out = string_replace_all(out, "&", "%26");
+	out = string_replace_all(out, "?", "%3F");
+	out = string_replace_all(out, "#", "%23");
+	out = string_replace_all(out, "+", "%2B");
+	out = string_replace_all(out, "/", "%2F");
+	out = string_replace_all(out, "=", "%3D");
+	return out;
+}
+
 function menuOpenSignIn() {
 	signInOpen = true;
 	signInActiveField = 0;
@@ -29,9 +42,41 @@ function menuConfirmSignIn() {
 
 	signInOpen = false;
 	keyboard_string = "";
-	statusText = global.sgcSignedIn
-		? "[SGC] signed in as " + global.sgcDisplayName + " (" + global.sgcExternalId + ")."
-		: "[SYS] guest mode active. add an external_id to link Sadgirlcoin.";
+	if (global.sgcSignedIn) {
+		if (global.sgcLinkCode != "") {
+			statusText = "[SGC] link-code fallback ready for " + global.sgcDisplayName + ".";
+		} else {
+			statusText = "[SGC] OAuth identity set to " + global.sgcExternalId + ".";
+		}
+	} else {
+		statusText = "[SYS] guest mode active. add an external_id to link Sadgirlcoin.";
+	}
+}
+
+function menuStartDiscordOAuth() {
+	// Capture currently edited field before launching browser flow.
+	signInFields[signInActiveField].value = keyboard_string;
+
+	var newName     = string_trim(signInFields[0].value);
+	var newExternal = string_trim(signInFields[1].value);
+
+	if (newName == "") newName = "Player " + string(irandom_range(1000, 9999));
+	if (newExternal == "") {
+		newExternal = "roulette_" + string(current_time) + "_" + string(irandom_range(100, 999));
+	}
+
+	global.sgcDisplayName = string_copy(newName,     1, min(string_length(newName),     24));
+	global.sgcExternalId  = string_copy(newExternal, 1, min(string_length(newExternal), 64));
+	signInFields[0].value = global.sgcDisplayName;
+	signInFields[1].value = global.sgcExternalId;
+
+	var baseUrl = variable_global_exists("sgcBrokerHttpBase") ? string_trim(global.sgcBrokerHttpBase) : "https://sadgirlsclub.wtf";
+	if (baseUrl == "") baseUrl = "https://sadgirlsclub.wtf";
+	var oauthUrl = baseUrl
+		+ "/sgc/oauth/start?external_id=" + menuUrlComponent(global.sgcExternalId)
+		+ "&external_name=" + menuUrlComponent(global.sgcDisplayName);
+	url_open(oauthUrl);
+	statusText = "[SGC] browser opened for Discord OAuth. Return here, then press Confirm.";
 }
 
 function menuCancelSignIn() {
@@ -68,18 +113,22 @@ if (signInOpen) {
 	}
 
 	var overConfirm = point_in_rectangle(mouseXPos, mouseYPos, signInConfirmButton.x, signInConfirmButton.y, signInConfirmButton.x + signInConfirmButton.w, signInConfirmButton.y + signInConfirmButton.h);
+	var overOAuth   = point_in_rectangle(mouseXPos, mouseYPos, signInOAuthButton.x,   signInOAuthButton.y,   signInOAuthButton.x   + signInOAuthButton.w,   signInOAuthButton.y   + signInOAuthButton.h);
 	var overCancel  = point_in_rectangle(mouseXPos, mouseYPos, signInCancelButton.x,  signInCancelButton.y,  signInCancelButton.x  + signInCancelButton.w,  signInCancelButton.y  + signInCancelButton.h);
-	if (overConfirm) hoveredButton = "signin_confirm";
+	if (overOAuth) hoveredButton = "signin_oauth";
+	else if (overConfirm) hoveredButton = "signin_confirm";
 	else if (overCancel) hoveredButton = "signin_cancel";
 
 	var maxLen = signInFields[signInActiveField].max;
 	if (string_length(keyboard_string) > maxLen) keyboard_string = string_copy(keyboard_string, 1, maxLen);
 
+	if (keyboard_check_pressed(ord("O"))) menuStartDiscordOAuth();
 	if (keyboard_check_pressed(vk_enter)) menuConfirmSignIn();
 	if (keyboard_check_pressed(vk_escape)) menuCancelSignIn();
 
 	if (mouse_check_button_pressed(mb_left)) {
-		if (overConfirm) menuConfirmSignIn();
+		if (overOAuth) menuStartDiscordOAuth();
+		else if (overConfirm) menuConfirmSignIn();
 		else if (overCancel) menuCancelSignIn();
 	}
 	exit;

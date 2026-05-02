@@ -10,15 +10,23 @@ if (!variable_global_exists("sgcSignedIn"))    global.sgcSignedIn    = false;
 if (!variable_global_exists("sgcDisplayName")) global.sgcDisplayName = "Player " + string(irandom_range(1000, 9999));
 if (!variable_global_exists("sgcExternalId")) global.sgcExternalId  = "";
 if (!variable_global_exists("sgcLinkCode"))    global.sgcLinkCode    = "";
+if (!variable_global_exists("sgcBrokerHttpBase")) global.sgcBrokerHttpBase = "https://sadgirlsclub.wtf";
 
 backgroundTop = make_color_rgb(5, 6, 10);
 backgroundBottom = make_color_rgb(34, 15, 38);
 panelColor = make_color_rgb(16, 15, 25);
 lineColor = make_color_rgb(93, 228, 207);
+textColor = make_color_rgb(241, 238, 246);
 buttonColor = make_color_rgb(30, 24, 43);
 buttonHoverColor = make_color_rgb(213, 43, 102);
 buttonAltColor = make_color_rgb(18, 25, 34);
-buttonAltHoverColor = make_col(buttonHeight * 1.5) - buttonGap;
+buttonAltHoverColor = make_color_rgb(43, 62, 84);
+
+buttonWidth = 360;
+buttonHeight = 64;
+buttonGap = 20;
+buttonX = room_width * 0.5 - buttonWidth * 0.5;
+buttonY = 280;
 
 signInButton = {
 	x: buttonX,
@@ -38,14 +46,7 @@ playButton = {
 
 settingsButton = {
 	x: buttonX,
-	y: buttonY + (buttonHeight + buttonGap) * 2
-	h: buttonHeight,
-	label: "Table Games"
-};
-
-settingsButton = {
-	x: buttonX,
-	y: buttonY + buttonHeight + buttonGap,
+	y: buttonY + (buttonHeight + buttonGap) * 2,
 	w: buttonWidth,
 	h: buttonHeight,
 	label: "Settings"
@@ -83,6 +84,13 @@ signInConfirmButton = {
 	w: 200,
 	h: 56,
 	label: "Confirm"
+};
+signInOAuthButton = {
+	x: room_width * 0.5 - 220,
+	y: signInPanel.y2 - 162,
+	w: 440,
+	h: 52,
+	label: "Continue with Discord OAuth"
 };
 signInCancelButton = {
 	x: room_width * 0.5 + 20,
