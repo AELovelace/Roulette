@@ -91,6 +91,47 @@ function hasOauthConfig() {
   return !!(SGC_BASE_URL && SGC_API_KEY && SGC_OAUTH_CLIENT_ID && SGC_OAUTH_REDIRECT_URI);
 }
 
+function requestPublicOrigin(req, requestUrl) {
+  const forwardedProtoRaw = String(req.headers["x-forwarded-proto"] || "");
+  const forwardedHostRaw = String(req.headers["x-forwarded-host"] || "");
+  const forwardedProto = forwardedProtoRaw.split(",")[0].trim();
+  const forwardedHost = forwardedHostRaw.split(",")[0].trim();
+  const proto = forwardedProto || requestUrl.protocol.replace(":", "") || "https";
+  const host = forwardedHost || String(req.headers.host || "").split(",")[0].trim();
+  if (!host) {
+    return "";
+  }
+  return `${proto}://${host}`;
+}
+
+function isPrivateOrLoopbackHost(hostname) {
+  const host = String(hostname || "").toLowerCase();
+  if (!host) return false;
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1") return true;
+  if (host.startsWith("10.")) return true;
+  if (host.startsWith("192.168.")) return true;
+  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)) return true;
+  return false;
+}
+
+function rewriteAuthorizeUrlForPublicOrigin(authorizeUrl, publicOrigin) {
+  try {
+    const original = new URL(authorizeUrl);
+    if (!isPrivateOrLoopbackHost(original.hostname)) {
+      return authorizeUrl;
+    }
+    if (!publicOrigin) {
+      return authorizeUrl;
+    }
+    const publicBase = new URL(publicOrigin);
+    original.protocol = publicBase.protocol;
+    original.host = publicBase.host;
+    return original.toString();
+  } catch (error) {
+    return authorizeUrl;
+  }
+}
+
 function oauthErrorDetail(error) {
   const top = error?.message ? String(error.message) : "unknown error";
   const causeCode = error?.cause?.code ? String(error.cause.code) : "";
@@ -1322,6 +1363,7 @@ const httpServer = http.createServer((req, res) => {
 
   if (req.method === "GET" && pathname === "/sgc/oauth/start") {
     cleanupOauthPending();
+    const publicOrigin = requestPublicOrigin(req, requestUrl);
     if (!hasOauthConfig()) {
       writeHtml(
         res,
@@ -1393,7 +1435,12 @@ const httpServer = http.createServer((req, res) => {
           return;
         }
 
-        res.writeHead(302, { Location: authorizeUrl });
+        const finalAuthorizeUrl = rewriteAuthorizeUrlForPublicOrigin(authorizeUrl, publicOrigin);
+        if (finalAuthorizeUrl !== authorizeUrl) {
+          console.log(`[oauth] rewrote authorize url origin for proxy: ${authorizeUrl} -> ${finalAuthorizeUrl}`);
+        }
+
+        res.writeHead(302, { Location: finalAuthorizeUrl });
         res.end();
       })
       .catch((error) => {
