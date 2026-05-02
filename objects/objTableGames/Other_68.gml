@@ -69,6 +69,14 @@ switch (eventType) {
 						global.sgcDisplayName = displayName;
 						tablePlayerName = displayName;
 					}
+					if (!variable_global_exists("sgcSessionPath")) global.sgcSessionPath = "sgc_session.ini";
+					ini_open(global.sgcSessionPath);
+					ini_write_real("sgc", "signed_in", global.sgcSignedIn ? 1 : 0);
+					ini_write_string("sgc", "display_name", global.sgcDisplayName);
+					ini_write_string("sgc", "external_id", global.sgcExternalId);
+					ini_write_string("sgc", "link_code", variable_global_exists("sgcLinkCode") ? global.sgcLinkCode : "");
+					ini_write_string("sgc", "broker_http_base", variable_global_exists("sgcBrokerHttpBase") ? global.sgcBrokerHttpBase : "https://sadgirlsclub.wtf");
+					ini_close();
 				}
 
 				if (messageKind == "table_state" && rouletteStructGet(message, "game", "") == tableGameKey) {

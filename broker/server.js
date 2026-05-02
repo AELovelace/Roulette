@@ -10,7 +10,7 @@ const SGC_API_KEY = process.env.SGC_API_KEY || "";
 const SGC_OAUTH_CLIENT_ID = process.env.SGC_OAUTH_CLIENT_ID || "";
 const SGC_OAUTH_CLIENT_SECRET = process.env.SGC_OAUTH_CLIENT_SECRET || "";
 const SGC_OAUTH_REDIRECT_URI = process.env.SGC_OAUTH_REDIRECT_URI || "";
-const SGC_OAUTH_SCOPE = process.env.SGC_OAUTH_SCOPE || "balance:read coins:debit coins:credit";
+const SGC_OAUTH_SCOPE = process.env.SGC_OAUTH_SCOPE || "identity:read balance:read coins:debit coins:credit";
 const SGC_PUBLIC_ORIGIN = (process.env.SGC_PUBLIC_ORIGIN || "").replace(/\/$/, "");
 const DEFAULT_BANKROLL = 1000;
 const SGC_DEBUG_SIGNIN = process.env.SGC_DEBUG_SIGNIN === "1";
@@ -254,8 +254,9 @@ function isOauthLinkedExternalId(externalId) {
 
 function resolveDisplayNameFromOauthPayload(payload, fallbackName) {
   const fallback = String(fallbackName || "").trim();
-  const safeFallback = (/^Player\s+\d+$/i.test(fallback) || fallback === "") ? "" : fallback;
+  const safeFallback = (/^Player\s+\d+$/i.test(fallback) || /^player$/i.test(fallback) || fallback === "") ? "" : fallback;
   const candidates = [
+    payload?.user?.discord_username,
     payload?.user?.display_name,
     payload?.user?.global_name,
     payload?.user?.username,
@@ -1659,6 +1660,8 @@ const httpServer = http.createServer((req, res) => {
         if (SGC_DEBUG_SIGNIN) {
           console.log("[sgc][oauth] token payload keys:", Object.keys(parsed || {}));
           console.log("[sgc][oauth] token name candidates:", {
+            user_discord_id: parsed?.user?.discord_id,
+            user_discord_username: parsed?.user?.discord_username,
             user_display_name: parsed?.user?.display_name,
             user_global_name: parsed?.user?.global_name,
             user_username: parsed?.user?.username,
@@ -1678,7 +1681,8 @@ const httpServer = http.createServer((req, res) => {
 
         var resolvedName = resolveDisplayNameFromOauthPayload(parsed, pending.externalName);
         if (!resolvedName) {
-          resolvedName = String(pending.externalId || "Player").slice(0, 24);
+          resolvedName = String(pending.externalId || "").slice(0, 24);
+          if (!resolvedName) resolvedName = "Guest";
         }
         console.log(`[sgc][oauth] resolved display name: ${resolvedName}`);
         markOauthLinked(pending.externalId, resolvedName);

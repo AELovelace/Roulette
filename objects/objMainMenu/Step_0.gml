@@ -30,6 +30,17 @@ function menuSignInFieldSet(_index, _name, _value) {
 	}
 }
 
+function menuSaveSgcSession() {
+	if (!variable_global_exists("sgcSessionPath")) global.sgcSessionPath = "sgc_session.ini";
+	ini_open(global.sgcSessionPath);
+	ini_write_real("sgc", "signed_in", global.sgcSignedIn ? 1 : 0);
+	ini_write_string("sgc", "display_name", global.sgcDisplayName);
+	ini_write_string("sgc", "external_id", global.sgcExternalId);
+	ini_write_string("sgc", "link_code", global.sgcLinkCode);
+	ini_write_string("sgc", "broker_http_base", global.sgcBrokerHttpBase);
+	ini_close();
+}
+
 function menuExternalIdFromName(_name) {
 	var out = string_lower(string_trim(_name));
 	out = string_replace_all(out, " ", "_");
@@ -41,7 +52,7 @@ function menuExternalIdFromName(_name) {
 	out = string_replace_all(out, "?", "_");
 	out = string_replace_all(out, "&", "_");
 	out = string_replace_all(out, "=", "_");
-	if (out == "") out = "player";
+	if (out == "") out = "";
 	return string_copy(out, 1, 64);
 }
 
@@ -65,6 +76,7 @@ function menuConfirmSignIn() {
 	global.sgcExternalId  = string_copy(newExternal, 1, min(string_length(newExternal), 64));
 	global.sgcLinkCode    = string_copy(newCode,     1, min(string_length(newCode),     16));
 	global.sgcSignedIn    = (global.sgcExternalId != "");
+	menuSaveSgcSession();
 
 	signInOpen = false;
 	keyboard_string = "";
@@ -87,14 +99,19 @@ function menuStartDiscordOAuth() {
 	if (newExternal == "") {
 		newExternal = menuExternalIdFromName(global.sgcDisplayName);
 	}
+	if (newExternal == "") {
+		statusText = "[SGC] enter external_id before OAuth (example: your Discord user id).";
+		return;
+	}
 
 	global.sgcExternalId  = string_copy(newExternal, 1, min(string_length(newExternal), 64));
 	menuSignInFieldSet(0, "value", global.sgcExternalId);
+	menuSaveSgcSession();
 
 	var baseUrl = variable_global_exists("sgcBrokerHttpBase") ? string_trim(global.sgcBrokerHttpBase) : "https://sadgirlsclub.wtf";
 	if (baseUrl == "") baseUrl = "https://sadgirlsclub.wtf";
 	var outboundName = global.sgcDisplayName;
-	if (string_trim(outboundName) == "") outboundName = global.sgcExternalId;
+	if (string_trim(outboundName) == "") outboundName = "";
 	var oauthUrl = baseUrl
 		+ "/sgc/oauth/start?external_id=" + menuUrlComponent(global.sgcExternalId)
 		+ "&external_name=" + menuUrlComponent(outboundName);
