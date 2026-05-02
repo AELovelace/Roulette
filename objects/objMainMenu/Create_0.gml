@@ -4,6 +4,10 @@ statusText = "[SYS] choose a node.";
 settingsOpen = false;
 signInOpen = false;
 selectedButton = 0;
+menuOauthPending = false;
+menuOauthStatusRequestId = -1;
+menuOauthNextPollAt = 0;
+menuOauthDeadlineAt = 0;
 
 // Persistent SGC identity globals (consumed by objWheel / objTableGames on connect).
 if (!variable_global_exists("sgcSignedIn"))    global.sgcSignedIn    = false;
@@ -61,6 +65,14 @@ settingsButton = {
 	w: buttonWidth,
 	h: buttonHeight,
 	label: "Settings"
+};
+
+signOutButton = {
+	x: buttonX,
+	y: buttonY + (buttonHeight + buttonGap) * 3,
+	w: buttonWidth,
+	h: buttonHeight,
+	label: "Sign Out"
 };
 
 settingsPanel = {

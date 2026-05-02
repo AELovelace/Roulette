@@ -15,21 +15,6 @@ function menuUrlComponent(_value) {
 	return out;
 }
 
-function menuSignInFieldGet(_index, _name, _default) {
-	var item = signInFields[_index];
-	if (is_struct(item) && variable_struct_exists(item, _name)) {
-		return variable_struct_get(item, _name);
-	}
-	return _default;
-}
-
-function menuSignInFieldSet(_index, _name, _value) {
-	var item = signInFields[_index];
-	if (is_struct(item)) {
-		variable_struct_set(item, _name, _value);
-	}
-}
-
 function menuSaveSgcSession() {
 	if (!variable_global_exists("sgcSessionPath")) global.sgcSessionPath = "sgc_session.ini";
 	ini_open(global.sgcSessionPath);
@@ -57,8 +42,8 @@ function menuExternalIdFromName(_name) {
 }
 
 function menuOpenSignIn() {
-	signInOpen = true;
-	statusText = "[SYS] click the button below to authenticate with Discord.";
+	signInOpen = false;
+	menuStartDiscordOAuth();
 }
 
 
@@ -69,8 +54,8 @@ function menuStartDiscordOAuth() {
 		var timestamp = current_time;
 		var random_part = string(irandom_range(100000, 999999));
 		global.sgcExternalId = "player_" + string(timestamp) + "_" + random_part;
-		menuSaveSgcSession();
 	}
+	menuSaveSgcSession();
 
 	var baseUrl = variable_global_exists("sgcBrokerHttpBase") ? string_trim(global.sgcBrokerHttpBase) : "https://sadgirlsclub.wtf";
 	if (baseUrl == "") baseUrl = "https://sadgirlsclub.wtf";
@@ -79,13 +64,37 @@ function menuStartDiscordOAuth() {
 	var oauthUrl = baseUrl
 		+ "/sgc/oauth/start?external_id=" + menuUrlComponent(global.sgcExternalId)
 		+ "&external_name=" + menuUrlComponent(outboundName);
+	menuOauthPending = true;
+	menuOauthStatusRequestId = -1;
+	menuOauthNextPollAt = current_time + 750;
+	menuOauthDeadlineAt = current_time + 120000;
 	url_open(oauthUrl);
-	statusText = "[SGC] browser opened for Discord OAuth. Return here when complete.";
+	statusText = "[SGC] opening Discord OAuth in browser... return to the game when done.";
 }
 
 function menuCancelSignIn() {
 	signInOpen = false;
 	statusText = "[SYS] sign-in cancelled.";
+}
+
+function menuSignOut() {
+	if (!variable_global_exists("sgcSessionPath")) global.sgcSessionPath = "sgc_session.ini";
+	if (file_exists(global.sgcSessionPath)) {
+		file_delete(global.sgcSessionPath);
+	}
+
+	global.sgcSignedIn = false;
+	global.sgcDisplayName = "";
+	global.sgcExternalId = "";
+	global.sgcLinkCode = "";
+	menuOauthPending = false;
+	menuOauthStatusRequestId = -1;
+	menuOauthNextPollAt = 0;
+	menuOauthDeadlineAt = 0;
+
+	signInOpen = false;
+	settingsOpen = false;
+	statusText = "[SGC] signed out. saved account data deleted.";
 }
 
 function menuActivateSelection() {
@@ -94,6 +103,22 @@ function menuActivateSelection() {
 	if (selectedButton == 2) {
 		settingsOpen = true;
 		statusText = "[SYS] settings panel is blank for now.";
+	}
+	if (selectedButton == 3) menuSignOut();
+}
+
+if (menuOauthPending && global.sgcExternalId != "") {
+	if (current_time >= menuOauthDeadlineAt) {
+		menuOauthPending = false;
+		menuOauthStatusRequestId = -1;
+		statusText = "[SGC] sign-in timed out. click Sign In to try again.";
+	}
+	else if (menuOauthStatusRequestId < 0 && current_time >= menuOauthNextPollAt) {
+		var statusBaseUrl = variable_global_exists("sgcBrokerHttpBase") ? string_trim(global.sgcBrokerHttpBase) : "https://sadgirlsclub.wtf";
+		if (statusBaseUrl == "") statusBaseUrl = "https://sadgirlsclub.wtf";
+		var statusUrl = statusBaseUrl + "/sgc/oauth/status?external_id=" + menuUrlComponent(global.sgcExternalId);
+		menuOauthStatusRequestId = http_get(statusUrl);
+		menuOauthNextPollAt = current_time + 1000;
 	}
 }
 
@@ -139,7 +164,7 @@ if (!settingsOpen) {
 	}
 
 	if (keyboard_check_pressed(vk_down) || keyboard_check_pressed(ord("S"))) {
-		selectedButton = min(2, selectedButton + 1);
+		selectedButton = min(3, selectedButton + 1);
 	}
 
 	if (point_in_rectangle(mouseXPos, mouseYPos, signInButton.x, signInButton.y, signInButton.x + signInButton.w, signInButton.y + signInButton.h)) {
@@ -157,6 +182,11 @@ if (!settingsOpen) {
 		selectedButton = 2;
 	}
 
+	if (point_in_rectangle(mouseXPos, mouseYPos, signOutButton.x, signOutButton.y, signOutButton.x + signOutButton.w, signOutButton.y + signOutButton.h)) {
+		hoveredButton = "signout";
+		selectedButton = 3;
+	}
+
 	if (keyboard_check_pressed(vk_enter) || keyboard_check_pressed(vk_space)) {
 		menuActivateSelection();
 	}
@@ -168,6 +198,7 @@ if (!settingsOpen) {
 			settingsOpen = true;
 			statusText = "[SYS] settings panel is blank for now.";
 		}
+		else if (hoveredButton == "signout") menuSignOut();
 	}
 } else {
 	var overClose = point_in_rectangle(mouseXPos, mouseYPos, settingsCloseButton.x, settingsCloseButton.y, settingsCloseButton.x + settingsCloseButton.w, settingsCloseButton.y + settingsCloseButton.h);

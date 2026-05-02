@@ -1791,6 +1791,7 @@ const httpServer = http.createServer((req, res) => {
 
     fetchLinkStatusFromSgc(externalId)
       .then((result) => {
+        const cachedRecord = oauthLinkedByExternalId.get(externalId) || null;
         if (result.ok) {
           // Keep local cache warm for quick ws join hydration.
           if (result.linked && !oauthLinkedByExternalId.has(externalId)) {
@@ -1809,6 +1810,7 @@ const httpServer = http.createServer((req, res) => {
             linked: result.linked,
             external_id: externalId,
             linked_at: result.link?.created_at || null,
+            display_name: cachedRecord?.displayName || "",
             source: "sgc_api",
           }));
           return;
@@ -1822,6 +1824,7 @@ const httpServer = http.createServer((req, res) => {
           linked: fallbackLinked,
           external_id: externalId,
           linked_at: fallbackRecord?.linkedAt || null,
+          display_name: fallbackRecord?.displayName || "",
           source: "local_cache",
           warning: result.error || `status_check_failed_${result.status}`,
         }));
