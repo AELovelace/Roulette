@@ -139,6 +139,10 @@ if (signInOpen) {
 	var confirmFill = (hoveredButton == "signin_confirm") ? buttonHoverColor    : buttonColor;
 	var cancelFill  = (hoveredButton == "signin_cancel")  ? buttonAltHoverColor : buttonAltColor;
 
+	// Draw OAuth button with debug highlight
+	draw_set_color(make_color_rgb(255, 100, 100)); // Bright red debug color
+	draw_rectangle(signInOAuthButton.x - 2, signInOAuthButton.y - 2, signInOAuthButton.x + signInOAuthButton.w + 2, signInOAuthButton.y + signInOAuthButton.h + 2, false);
+	
 	draw_set_color(oauthFill);
 	draw_roundrect(signInOAuthButton.x, signInOAuthButton.y, signInOAuthButton.x + signInOAuthButton.w, signInOAuthButton.y + signInOAuthButton.h, false);
 	draw_set_color(lineColor);

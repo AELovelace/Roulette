@@ -62,7 +62,7 @@ function menuOpenSignIn() {
 	menuSignInFieldSet(0, "value", global.sgcExternalId);
 	menuSignInFieldSet(1, "value", global.sgcLinkCode);
 	keyboard_string = menuSignInFieldGet(signInActiveField, "value", "");
-	statusText = "[SYS] enter your Sadgirlcoin identity.";
+	statusText = "[SYS] enter your Sadgirlcoin identity. (OAuth button: x=" + string(signInOAuthButton.x) + " y=" + string(signInOAuthButton.y) + " w=" + string(signInOAuthButton.w) + " h=" + string(signInOAuthButton.h) + ")";
 }
 
 function menuConfirmSignIn() {
@@ -152,12 +152,31 @@ if (signInOpen) {
 		}
 	}
 
+	// Button hover detection - verify structs exist first
+	if (!is_struct(signInOAuthButton) || !is_struct(signInConfirmButton) || !is_struct(signInCancelButton)) {
+		statusText = "[ERROR] Button structs not initialized!";
+		exit;
+	}
+	
 	var overConfirm = point_in_rectangle(mouseXPos, mouseYPos, signInConfirmButton.x, signInConfirmButton.y, signInConfirmButton.x + signInConfirmButton.w, signInConfirmButton.y + signInConfirmButton.h);
 	var overOAuth   = point_in_rectangle(mouseXPos, mouseYPos, signInOAuthButton.x,   signInOAuthButton.y,   signInOAuthButton.x   + signInOAuthButton.w,   signInOAuthButton.y   + signInOAuthButton.h);
 	var overCancel  = point_in_rectangle(mouseXPos, mouseYPos, signInCancelButton.x,  signInCancelButton.y,  signInCancelButton.x  + signInCancelButton.w,  signInCancelButton.y  + signInCancelButton.h);
-	if (overOAuth) hoveredButton = "signin_oauth";
-	else if (overConfirm) hoveredButton = "signin_confirm";
-	else if (overCancel) hoveredButton = "signin_cancel";
+	
+	if (overOAuth) {
+		hoveredButton = "signin_oauth";
+		statusText = ">>> OAUTH BUTTON HOVERED <<< Click to authenticate";
+	}
+	else if (overConfirm) {
+		hoveredButton = "signin_confirm";
+		statusText = "[Confirm hovered]";
+	}
+	else if (overCancel) {
+		hoveredButton = "signin_cancel";
+		statusText = "[Cancel hovered]";
+	}
+	else {
+		statusText = "[OAuth: " + string(overOAuth) + "] [Confirm: " + string(overConfirm) + "] [Cancel: " + string(overCancel) + "] Mouse: (" + string(mouseXPos) + ", " + string(mouseYPos) + ")";
+	}
 
 	var maxLen = real(menuSignInFieldGet(signInActiveField, "max", 64));
 	if (string_length(keyboard_string) > maxLen) keyboard_string = string_copy(keyboard_string, 1, maxLen);
@@ -166,10 +185,20 @@ if (signInOpen) {
 	if (keyboard_check_pressed(vk_enter)) menuConfirmSignIn();
 	if (keyboard_check_pressed(vk_escape)) menuCancelSignIn();
 
+	// Button click handling
 	if (mouse_check_button_pressed(mb_left)) {
-		if (overOAuth) menuStartDiscordOAuth();
-		else if (overConfirm) menuConfirmSignIn();
-		else if (overCancel) menuCancelSignIn();
+		// Check each button independently
+		var clickedOAuth = point_in_rectangle(mouseXPos, mouseYPos, signInOAuthButton.x, signInOAuthButton.y, signInOAuthButton.x + signInOAuthButton.w, signInOAuthButton.y + signInOAuthButton.h);
+		var clickedConfirm = point_in_rectangle(mouseXPos, mouseYPos, signInConfirmButton.x, signInConfirmButton.y, signInConfirmButton.x + signInConfirmButton.w, signInConfirmButton.y + signInConfirmButton.h);
+		var clickedCancel = point_in_rectangle(mouseXPos, mouseYPos, signInCancelButton.x, signInCancelButton.y, signInCancelButton.x + signInCancelButton.w, signInCancelButton.y + signInCancelButton.h);
+		
+		if (clickedOAuth) {
+			menuStartDiscordOAuth();
+		} else if (clickedConfirm) {
+			menuConfirmSignIn();
+		} else if (clickedCancel) {
+			menuCancelSignIn();
+		}
 	}
 	exit;
 }

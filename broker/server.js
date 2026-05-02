@@ -256,7 +256,12 @@ function resolveDisplayNameFromOauthPayload(payload, fallbackName) {
   const fallback = String(fallbackName || "").trim();
   const safeFallback = (/^Player\s+\d+$/i.test(fallback) || /^player$/i.test(fallback) || fallback === "") ? "" : fallback;
   const candidates = [
+    // New Discord username fields (identity:read enabled)
     payload?.user?.discord_username,
+    payload?.discord_username,
+    payload?.user?.discord_name,
+    payload?.discord_name,
+    // Legacy/alternative locations
     payload?.user?.display_name,
     payload?.user?.global_name,
     payload?.user?.username,
@@ -1654,9 +1659,11 @@ const httpServer = http.createServer((req, res) => {
         if (!tokenRes.ok) {
           const message = htmlEscape(parsed?.error?.message || `Token exchange failed (${tokenRes.status}).`);
           writeHtml(res, 502, "OAuth sign-in failed", `<p>${message}</p>`);
-          return;
-        }
-
+          return; (new identity:read fields prioritized):", {
+            discord_username: parsed?.discord_username,
+            user_discord_username: parsed?.user?.discord_username,
+            discord_name: parsed?.discord_name,
+            user_discord_name: parsed?.user?.discord_
         if (SGC_DEBUG_SIGNIN) {
           console.log("[sgc][oauth] token payload keys:", Object.keys(parsed || {}));
           console.log("[sgc][oauth] token name candidates:", {

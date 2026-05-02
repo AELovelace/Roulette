@@ -90,21 +90,21 @@ signInFirstRowY = signInPanel.y1 + 112;
 
 signInConfirmButton = {
 	x: room_width * 0.5 - 220,
-	y: signInPanel.y2 - 84,
+	y: signInPanel.y1 + 220,
 	w: 200,
 	h: 56,
 	label: "Confirm"
 };
 signInOAuthButton = {
-	x: room_width * 0.5 - 220,
-	y: signInPanel.y2 - 156,
-	w: 440,
-	h: 52,
+	x: 50,
+	y: 200,
+	w: room_width - 100,
+	h: 60,
 	label: "Continue with Discord OAuth"
 };
 signInCancelButton = {
 	x: room_width * 0.5 + 20,
-	y: signInPanel.y2 - 84,
+	y: signInPanel.y1 + 220,
 	w: 200,
 	h: 56,
 	label: "Cancel"
