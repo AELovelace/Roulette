@@ -1848,8 +1848,6 @@ const httpServer = http.createServer((req, res) => {
           console.error(`[sgc][oauth] token exchange failed (${tokenRes.status}):`, JSON.stringify(parsed, null, 2));
           const errCode = parsed?.error?.code || parsed?.code || "";
           if (errCode === "discord_already_linked_to_different_external_id") {
-            // The Discord account is already linked to a different external_id on SGC.
-            // Try to find and revoke the old link so the player can retry.
             const existingExtId =
               parsed?.existing_external_id ||
               parsed?.error?.existing_external_id ||
@@ -1858,31 +1856,28 @@ const httpServer = http.createServer((req, res) => {
               null;
             const discordIdFromError =
               String(parsed?.discord_id || parsed?.user?.discord_id || parsed?.error?.discord_id || "").trim() || null;
-            let revokeTarget = existingExtId;
-            if (!revokeTarget && discordIdFromError) {
-              const stored = identityStore.getByDiscordId(discordIdFromError);
-              if (stored?.appId && stored.appId !== pending.externalId) revokeTarget = stored.appId;
-            }
-            if (revokeTarget) {
-              console.log(`[sgc][oauth] auto-revoking conflicting SGC link for external_id=${revokeTarget}`);
-              fetch(`${SGC_BASE_URL}/v1/links/${encodeURIComponent(revokeTarget)}`, {
-                method: "DELETE",
-                headers: { Authorization: `Bearer ${SGC_API_KEY}`, "Content-Type": "application/json", Accept: "application/json" },
-              }).then(async (delRes) => {
-                console.log(`[sgc][oauth] revoke ${revokeTarget} -> ${delRes.status}`);
-              }).catch((e) => {
-                console.error(`[sgc][oauth] revoke fetch error: ${oauthErrorDetail(e)}`);
-              });
-              oauthFailedBySessionId.set(pending.oauthSessionId, {
-                failedAt: Date.now(),
-                code: "relinked_retry",
-                message: "Previous Discord link removed. Please sign in again.",
-              });
+            if (existingExtId) {
+              const resumedExternalId = String(existingExtId).trim().slice(0, 64);
+              const resumedName = resolveDisplayNameFromOauthPayload(parsed, pending.externalName);
+              console.log(
+                `[sgc][oauth] conflict resolved by resuming existing external_id ${resumedExternalId} for session ${pending.oauthSessionId}`
+              );
+
+              try {
+                identityStore.ensureAppId(resumedExternalId, resumedName);
+                if (discordIdFromError) {
+                  identityStore.bindDiscordId(discordIdFromError, resumedExternalId, resumedName);
+                }
+              } catch (error) {
+                console.error(`[sgc][oauth] resume bind failed: ${oauthErrorDetail(error)}`);
+              }
+
+              markOauthLinked(pending.oauthSessionId, resumedExternalId, resumedName);
               writeHtml(
                 res,
-                409,
-                "Discord account re-linked",
-                `<p>Your Discord account was linked to a previous game identity and has been unlinked automatically.</p><p>Please close this window and <strong>sign in again</strong> from the game to complete linking.</p>`,
+                200,
+                "Discord OAuth complete",
+                `<p>Your Discord account is already linked, so we resumed your existing Roulette identity automatically.</p><p>Your immutable Roulette ID is <code>${htmlEscape(resumedExternalId)}</code>.</p><p>This window can close now. The original game tab will pick up the auth state automatically.</p>`,
                 buildOauthReturnScript(pending.returnTo)
               );
             } else {

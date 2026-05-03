@@ -30,6 +30,7 @@
   "resources":[
     {"id":{"name":"SGCOAuthBridge","path":"extensions/SGCOAuthBridge/SGCOAuthBridge.yy",},},
     {"id":{"name":"objMainMenu","path":"objects/objMainMenu/objMainMenu.yy",},},
+    {"id":{"name":"objResolution","path":"objects/objResolution/objResolution.yy",},},
     {"id":{"name":"objTableGames","path":"objects/objTableGames/objTableGames.yy",},},
     {"id":{"name":"objTableLobby","path":"objects/objTableLobby/objTableLobby.yy",},},
     {"id":{"name":"objWheel","path":"objects/objWheel/objWheel.yy",},},
