@@ -329,6 +329,21 @@ function breakoutBuildRandomField(_gridCols, _gridRows, _gridCell, _gridStartX, 
 	}
 }
 
+function breakoutBuildSeededField(_gridCols, _gridRows, _gridCell, _gridStartX, _gridStartY, _seed) {
+	var previousSeed = random_get_seed();
+	random_set_seed(max(1, floor(abs(_seed))));
+	breakoutBuildRandomField(_gridCols, _gridRows, _gridCell, _gridStartX, _gridStartY);
+	random_set_seed(previousSeed);
+}
+
+function breakoutLevelSeed(_ctrl, _level) {
+	var raceSeed = max(1, floor(abs(_ctrl.showdownRaceSeed)));
+	var levelIndex = max(1, floor(_level));
+	var mix = (raceSeed * 1664525 + levelIndex * 1013904223) mod 2147483647;
+	if (mix <= 0) mix += 2147483646;
+	return mix;
+}
+
 function breakoutDistance(_ctrl) {
 	return (max(1, _ctrl.level) - 1) * 100 + max(0, global.BOPScore);
 }
@@ -343,7 +358,7 @@ function breakoutBeginRun(_ctrl) {
 	_ctrl.localRaceSubmitted = false;
 	if (_ctrl.mode == "showdown") {
 		_ctrl.gridRows = _ctrl.showdownGridRows;
-		_ctrl.currentArenaX = _ctrl.showdownArenaLeftX;
+		_ctrl.currentArenaX = (_ctrl.breakoutPlayerId != "" && _ctrl.breakoutPlayerId == _ctrl.showdownPlayer2Id) ? _ctrl.showdownArenaRightX : _ctrl.showdownArenaLeftX;
 		_ctrl.currentArenaY = _ctrl.showdownArenaY;
 	} else {
 		_ctrl.gridRows = _ctrl.defaultGridRows;
@@ -354,7 +369,11 @@ function breakoutBeginRun(_ctrl) {
 	_ctrl.gridStartY = _ctrl.currentArenaY + 32;
 	breakoutSetBounds(_ctrl.currentArenaX, _ctrl.currentArenaY, _ctrl.arenaW, _ctrl.arenaH);
 	breakoutResetBat();
-	breakoutBuildRandomField(_ctrl.gridCols, _ctrl.gridRows, _ctrl.gridCell, _ctrl.gridStartX, _ctrl.gridStartY);
+	if (_ctrl.mode == "showdown" && _ctrl.showdownRaceSeed > 0) {
+		breakoutBuildSeededField(_ctrl.gridCols, _ctrl.gridRows, _ctrl.gridCell, _ctrl.gridStartX, _ctrl.gridStartY, breakoutLevelSeed(_ctrl, _ctrl.level));
+	} else {
+		breakoutBuildRandomField(_ctrl.gridCols, _ctrl.gridRows, _ctrl.gridCell, _ctrl.gridStartX, _ctrl.gridStartY);
+	}
 	breakoutResetBallStack();
 	_ctrl.state = "PLAYING";
 	_ctrl.statusText = _ctrl.mode == "showdown" ? "Showdown race live." : "[SGC] Run started.";
@@ -363,7 +382,11 @@ function breakoutBeginRun(_ctrl) {
 function breakoutAdvanceLevel(_ctrl) {
 	_ctrl.level += 1;
 	_ctrl.statusText = "[LEVEL] Cleared. Generating level " + string(_ctrl.level) + ".";
-	breakoutBuildRandomField(_ctrl.gridCols, _ctrl.gridRows, _ctrl.gridCell, _ctrl.gridStartX, _ctrl.gridStartY);
+	if (_ctrl.mode == "showdown" && _ctrl.showdownRaceSeed > 0) {
+		breakoutBuildSeededField(_ctrl.gridCols, _ctrl.gridRows, _ctrl.gridCell, _ctrl.gridStartX, _ctrl.gridStartY, breakoutLevelSeed(_ctrl, _ctrl.level));
+	} else {
+		breakoutBuildRandomField(_ctrl.gridCols, _ctrl.gridRows, _ctrl.gridCell, _ctrl.gridStartX, _ctrl.gridStartY);
+	}
 	breakoutResetBallStack();
 }
 
@@ -399,7 +422,8 @@ function breakoutReadTelemetry(_ctrl) {
 		batNorm: 0.5,
 		ballXNorm: 0.5,
 		ballYNorm: 0.85,
-		brickCount: instance_number(objBrick)
+		brickCount: instance_number(objBrick),
+		brickMask: ""
 	};
 	var ax = _ctrl.currentArenaX;
 	var ay = _ctrl.currentArenaY;
@@ -415,6 +439,21 @@ function breakoutReadTelemetry(_ctrl) {
 	} else if (instance_exists(objBallExtra)) {
 		out.ballXNorm = clamp((objBallExtra.x - ax) / aw, 0, 1);
 		out.ballYNorm = clamp((objBallExtra.y - ay) / ah, 0, 1);
+	}
+
+	var marks = array_create(_ctrl.gridCols * _ctrl.gridRows, 0);
+	for (var i = 0; i < instance_number(objBrick); i++) {
+		var b = instance_find(objBrick, i);
+		if (!instance_exists(b)) continue;
+		var c = round((b.x - _ctrl.gridStartX) / _ctrl.gridCell);
+		var r = round((b.y - _ctrl.gridStartY) / _ctrl.gridCell);
+		if (c >= 0 && c < _ctrl.gridCols && r >= 0 && r < _ctrl.gridRows) {
+			marks[r * _ctrl.gridCols + c] = 1;
+		}
+	}
+
+	for (var m = 0; m < array_length(marks); m++) {
+		out.brickMask += string(marks[m]);
 	}
 	return out;
 }

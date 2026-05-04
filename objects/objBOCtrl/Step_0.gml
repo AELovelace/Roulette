@@ -159,7 +159,8 @@ if (state == "GAMEOVER") {
 				batNorm: finishTelemetry.batNorm,
 				ballXNorm: finishTelemetry.ballXNorm,
 				ballYNorm: finishTelemetry.ballYNorm,
-				brickCount: finishTelemetry.brickCount
+				brickCount: finishTelemetry.brickCount,
+				brickMask: finishTelemetry.brickMask
 			});
 			statusText = "Waiting for showdown result...";
 		}
@@ -188,7 +189,8 @@ if (state == "PLAYING") {
 				batNorm: telemetry.batNorm,
 				ballXNorm: telemetry.ballXNorm,
 				ballYNorm: telemetry.ballYNorm,
-				brickCount: telemetry.brickCount
+				brickCount: telemetry.brickCount,
+				brickMask: telemetry.brickMask
 			});
 		}
 	}

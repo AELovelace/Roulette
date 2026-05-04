@@ -100,6 +100,7 @@ switch (eventType) {
 					var breakoutData = rouletteStructGet(message, "breakout", undefined);
 					if (is_struct(breakoutData)) {
 						showdownState = rouletteStructGet(breakoutData, "state", showdownState);
+						showdownRaceSeed = rouletteStructGet(breakoutData, "raceSeed", showdownRaceSeed);
 						showdownWinnerId = rouletteStructGet(breakoutData, "winnerId", showdownWinnerId);
 						showdownLoserId = rouletteStructGet(breakoutData, "loserId", showdownLoserId);
 						showdownPlayer1Id = rouletteStructGet(breakoutData, "player1Id", showdownPlayer1Id);
@@ -113,8 +114,8 @@ switch (eventType) {
 					showdownRole = "spectator";
 					showdownP1Name = "Player 1";
 					showdownP2Name = "Player 2";
-					showdownP1Breakout = { score: 0, level: 1, lives: 3, distance: 0, batNorm: 0.5, ballXNorm: 0.5, ballYNorm: 0.85, brickCount: 0 };
-					showdownP2Breakout = { score: 0, level: 1, lives: 3, distance: 0, batNorm: 0.5, ballXNorm: 0.5, ballYNorm: 0.85, brickCount: 0 };
+					showdownP1Breakout = { score: 0, level: 1, lives: 3, distance: 0, batNorm: 0.5, ballXNorm: 0.5, ballYNorm: 0.85, brickCount: 0, brickMask: "" };
+					showdownP2Breakout = { score: 0, level: 1, lives: 3, distance: 0, batNorm: 0.5, ballXNorm: 0.5, ballYNorm: 0.85, brickCount: 0, brickMask: "" };
 					opponentName = "Waiting...";
 					opponentScore = 0;
 					opponentLevel = 1;

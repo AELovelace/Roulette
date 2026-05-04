@@ -885,6 +885,7 @@ function createEmptyTableSeat(player) {
       ballXNorm: 0.5,
       ballYNorm: 0.85,
       brickCount: 0,
+      brickMask: "",
       finished: false,
       acceptedRematch: null,
     },
@@ -918,6 +919,7 @@ function createTableLobby(game, name) {
       state: "waiting",
       player1Id: "",
       player2Id: "",
+      raceSeed: 0,
       winnerId: "",
       loserId: "",
       challengerPromptOpen: false,
@@ -1014,6 +1016,7 @@ function breakoutResetRaceSeat(seat) {
   seat.breakout.ballXNorm = 0.5;
   seat.breakout.ballYNorm = 0.85;
   seat.breakout.brickCount = 0;
+  seat.breakout.brickMask = "";
   seat.breakout.finished = false;
   seat.breakout.acceptedRematch = null;
   seat.status = "Ready";
@@ -1060,6 +1063,7 @@ function breakoutSnapshot(lobby) {
     state: breakout.state,
     player1Id: breakout.player1Id,
     player2Id: breakout.player2Id,
+    raceSeed: breakout.raceSeed,
     winnerId: breakout.winnerId,
     loserId: breakout.loserId,
     challengerPromptOpen: breakout.challengerPromptOpen,
@@ -1916,6 +1920,7 @@ async function startBreakoutShowdown(player) {
   breakout.challengerPromptOpen = false;
   breakout.winnerId = "";
   breakout.loserId = "";
+  breakout.raceSeed = Math.floor(Math.random() * 2147483000) + 1;
   breakout.rematchVotes = {};
   breakout.scoreboard = {};
   breakout.showdownSummary = "Race live. First to survive farther wins.";
@@ -2056,6 +2061,7 @@ function breakoutProgressUpdate(player, payload) {
   seat.breakout.ballXNorm = Math.min(1, Math.max(0, Number(payload?.ballXNorm) || seat.breakout.ballXNorm));
   seat.breakout.ballYNorm = Math.min(1, Math.max(0, Number(payload?.ballYNorm) || seat.breakout.ballYNorm));
   seat.breakout.brickCount = Math.max(0, Number(payload?.brickCount) || seat.breakout.brickCount);
+  seat.breakout.brickMask = typeof payload?.brickMask === "string" ? payload.brickMask.slice(0, 108) : seat.breakout.brickMask;
   seat.breakout.distance = Math.max(seat.breakout.distance, breakoutScoreDistance(seat.breakout.level, seat.breakout.score));
   if (seat.breakout.lives <= 0) {
     seat.breakout.finished = true;
@@ -2077,6 +2083,7 @@ async function breakoutFinish(player, payload) {
   seat.breakout.ballXNorm = Math.min(1, Math.max(0, Number(payload?.ballXNorm) || seat.breakout.ballXNorm));
   seat.breakout.ballYNorm = Math.min(1, Math.max(0, Number(payload?.ballYNorm) || seat.breakout.ballYNorm));
   seat.breakout.brickCount = Math.max(0, Number(payload?.brickCount) || seat.breakout.brickCount);
+  seat.breakout.brickMask = typeof payload?.brickMask === "string" ? payload.brickMask.slice(0, 108) : seat.breakout.brickMask;
   seat.breakout.distance = Math.max(
     seat.breakout.distance,
     Math.max(0, Number(payload?.distance) || 0),
