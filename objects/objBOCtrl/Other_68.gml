@@ -102,6 +102,8 @@ switch (eventType) {
 						showdownState = rouletteStructGet(breakoutData, "state", showdownState);
 						showdownWinnerId = rouletteStructGet(breakoutData, "winnerId", showdownWinnerId);
 						showdownLoserId = rouletteStructGet(breakoutData, "loserId", showdownLoserId);
+						showdownPlayer1Id = rouletteStructGet(breakoutData, "player1Id", showdownPlayer1Id);
+						showdownPlayer2Id = rouletteStructGet(breakoutData, "player2Id", showdownPlayer2Id);
 						showdownPromptOpen = rouletteStructGet(breakoutData, "challengerPromptOpen", showdownPromptOpen);
 						showdownAllowBets = rouletteStructGet(breakoutData, "allowBets", showdownAllowBets);
 						showdownSummary = rouletteStructGet(breakoutData, "showdownSummary", showdownSummary);
@@ -109,25 +111,46 @@ switch (eventType) {
 					}
 
 					showdownRole = "spectator";
+					showdownP1Name = "Player 1";
+					showdownP2Name = "Player 2";
+					showdownP1Breakout = { score: 0, level: 1, lives: 3, distance: 0, batNorm: 0.5, ballXNorm: 0.5, ballYNorm: 0.85, brickCount: 0 };
+					showdownP2Breakout = { score: 0, level: 1, lives: 3, distance: 0, batNorm: 0.5, ballXNorm: 0.5, ballYNorm: 0.85, brickCount: 0 };
 					opponentName = "Waiting...";
 					opponentScore = 0;
 					opponentLevel = 1;
 					opponentLives = 3;
 					opponentDistance = 0;
+					opponentBatNorm = 0.5;
+					opponentBallXNorm = 0.5;
+					opponentBallYNorm = 0.85;
+					opponentBrickCount = 0;
 					for (var i = 0; i < array_length(showdownParticipants); i++) {
 						var participant = showdownParticipants[i];
 						var pid = rouletteStructGet(participant, "playerId", "");
+						var pname = rouletteStructGet(participant, "name", "Player");
 						var role = rouletteStructGet(participant, "role", "spectator");
+						var bo = rouletteStructGet(participant, "breakout", undefined);
 						if (pid == breakoutPlayerId) {
 							showdownRole = role;
-						} else if (role == "racer") {
-							opponentName = rouletteStructGet(participant, "name", "Opponent");
-							var bo = rouletteStructGet(participant, "breakout", undefined);
+						}
+						if (pid == showdownPlayer1Id) {
+							showdownP1Name = pname;
+							if (is_struct(bo)) showdownP1Breakout = bo;
+						} else if (pid == showdownPlayer2Id) {
+							showdownP2Name = pname;
+							if (is_struct(bo)) showdownP2Breakout = bo;
+						}
+						if (role == "racer" && pid != breakoutPlayerId) {
+							opponentName = pname;
 							if (is_struct(bo)) {
 								opponentScore = rouletteStructGet(bo, "score", 0);
 								opponentLevel = rouletteStructGet(bo, "level", 1);
 								opponentLives = rouletteStructGet(bo, "lives", 3);
 								opponentDistance = rouletteStructGet(bo, "distance", 0);
+								opponentBatNorm = rouletteStructGet(bo, "batNorm", 0.5);
+								opponentBallXNorm = rouletteStructGet(bo, "ballXNorm", 0.5);
+								opponentBallYNorm = rouletteStructGet(bo, "ballYNorm", 0.85);
+								opponentBrickCount = rouletteStructGet(bo, "brickCount", 0);
 							}
 						}
 					}
@@ -136,9 +159,16 @@ switch (eventType) {
 						if (showdownState == "racing" && showdownRole == "racer" && state != "PLAYING") {
 							breakoutBeginRun(id);
 						}
+						if (showdownState == "racing" && showdownRole != "racer") {
+							state = "SHOWDOWN_WATCH";
+							breakoutHideBoard();
+						}
 						if (showdownState != "racing" && state == "PLAYING") {
 							state = "SHOWDOWN_LOBBY";
 							breakoutHideBoard();
+						}
+						if (showdownState != "racing" && state == "SHOWDOWN_WATCH") {
+							state = "SHOWDOWN_LOBBY";
 						}
 						if (state == "SHOWDOWN_LOBBY") {
 							statusText = showdownSummary;

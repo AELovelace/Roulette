@@ -881,6 +881,10 @@ function createEmptyTableSeat(player) {
       level: 1,
       lives: 3,
       distance: 0,
+      batNorm: 0.5,
+      ballXNorm: 0.5,
+      ballYNorm: 0.85,
+      brickCount: 0,
       finished: false,
       acceptedRematch: null,
     },
@@ -1006,6 +1010,10 @@ function breakoutResetRaceSeat(seat) {
   seat.breakout.level = 1;
   seat.breakout.lives = 3;
   seat.breakout.distance = 0;
+  seat.breakout.batNorm = 0.5;
+  seat.breakout.ballXNorm = 0.5;
+  seat.breakout.ballYNorm = 0.85;
+  seat.breakout.brickCount = 0;
   seat.breakout.finished = false;
   seat.breakout.acceptedRematch = null;
   seat.status = "Ready";
@@ -2044,6 +2052,10 @@ function breakoutProgressUpdate(player, payload) {
   seat.breakout.score = Math.max(0, Number(payload?.score) || seat.breakout.score);
   seat.breakout.level = Math.max(1, Number(payload?.level) || seat.breakout.level);
   seat.breakout.lives = Math.max(0, Number(payload?.lives) || seat.breakout.lives);
+  seat.breakout.batNorm = Math.min(1, Math.max(0, Number(payload?.batNorm) || seat.breakout.batNorm));
+  seat.breakout.ballXNorm = Math.min(1, Math.max(0, Number(payload?.ballXNorm) || seat.breakout.ballXNorm));
+  seat.breakout.ballYNorm = Math.min(1, Math.max(0, Number(payload?.ballYNorm) || seat.breakout.ballYNorm));
+  seat.breakout.brickCount = Math.max(0, Number(payload?.brickCount) || seat.breakout.brickCount);
   seat.breakout.distance = Math.max(seat.breakout.distance, breakoutScoreDistance(seat.breakout.level, seat.breakout.score));
   if (seat.breakout.lives <= 0) {
     seat.breakout.finished = true;
@@ -2061,6 +2073,10 @@ async function breakoutFinish(player, payload) {
   seat.breakout.score = Math.max(0, Number(payload?.score) || seat.breakout.score);
   seat.breakout.level = Math.max(1, Number(payload?.level) || seat.breakout.level);
   seat.breakout.lives = Math.max(0, Number(payload?.lives) || 0);
+  seat.breakout.batNorm = Math.min(1, Math.max(0, Number(payload?.batNorm) || seat.breakout.batNorm));
+  seat.breakout.ballXNorm = Math.min(1, Math.max(0, Number(payload?.ballXNorm) || seat.breakout.ballXNorm));
+  seat.breakout.ballYNorm = Math.min(1, Math.max(0, Number(payload?.ballYNorm) || seat.breakout.ballYNorm));
+  seat.breakout.brickCount = Math.max(0, Number(payload?.brickCount) || seat.breakout.brickCount);
   seat.breakout.distance = Math.max(
     seat.breakout.distance,
     Math.max(0, Number(payload?.distance) || 0),

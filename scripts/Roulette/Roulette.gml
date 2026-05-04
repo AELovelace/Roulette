@@ -178,13 +178,50 @@ function breakoutHideBoard() {
 	with (objBall) { instance_destroy(); }
 	with (objBallExtra) { instance_destroy(); }
 	with (objPowerUp) { instance_destroy(); }
+	breakoutClearBounds();
+}
+
+function breakoutSetBounds(_x, _y, _w, _h) {
+	global.breakoutBoundsActive = true;
+	global.breakoutBoundsLeft = _x;
+	global.breakoutBoundsTop = _y;
+	global.breakoutBoundsRight = _x + _w;
+	global.breakoutBoundsBottom = _y + _h;
+	global.breakoutSpawnX = _x + _w * 0.5;
+	global.breakoutSpawnY = _y + _h - 64;
+}
+
+function breakoutClearBounds() {
+	global.breakoutBoundsActive = false;
+	global.breakoutBoundsLeft = 0;
+	global.breakoutBoundsTop = 0;
+	global.breakoutBoundsRight = room_width;
+	global.breakoutBoundsBottom = room_height;
+	global.breakoutSpawnX = room_width * 0.5;
+	global.breakoutSpawnY = room_height - 64;
+}
+
+function breakoutResetBat() {
+	if (!instance_exists(objBat)) return;
+	var left = variable_global_exists("breakoutBoundsLeft") ? global.breakoutBoundsLeft : 0;
+	var right = variable_global_exists("breakoutBoundsRight") ? global.breakoutBoundsRight : room_width;
+	var bottom = variable_global_exists("breakoutBoundsBottom") ? global.breakoutBoundsBottom : room_height;
+	with (objBat) {
+		x = (left + right) * 0.5;
+		y = bottom - 16;
+		xstart = x;
+		ystart = y;
+		image_xscale = 1;
+	}
 }
 
 function breakoutResetBallStack() {
 	with (objBall) { instance_destroy(); }
 	with (objBallExtra) { instance_destroy(); }
 	with (objPowerUp) { instance_destroy(); }
-	instance_create_layer(room_width * 0.5, room_height - 64, "Instances", objBall);
+	var spawnX = variable_global_exists("breakoutSpawnX") ? global.breakoutSpawnX : room_width * 0.5;
+	var spawnY = variable_global_exists("breakoutSpawnY") ? global.breakoutSpawnY : room_height - 64;
+	instance_create_layer(spawnX, spawnY, "Instances", objBall);
 }
 
 function breakoutBuildRandomField(_gridCols, _gridRows, _gridCell, _gridStartX, _gridStartY) {
@@ -306,11 +343,17 @@ function breakoutBeginRun(_ctrl) {
 	_ctrl.localRaceSubmitted = false;
 	if (_ctrl.mode == "showdown") {
 		_ctrl.gridRows = _ctrl.showdownGridRows;
-		_ctrl.gridStartY = _ctrl.showdownGridStartY;
+		_ctrl.currentArenaX = _ctrl.showdownArenaLeftX;
+		_ctrl.currentArenaY = _ctrl.showdownArenaY;
 	} else {
 		_ctrl.gridRows = _ctrl.defaultGridRows;
-		_ctrl.gridStartY = _ctrl.defaultGridStartY;
+		_ctrl.currentArenaX = _ctrl.soloArenaX;
+		_ctrl.currentArenaY = _ctrl.soloArenaY;
 	}
+	_ctrl.gridStartX = _ctrl.currentArenaX + 32;
+	_ctrl.gridStartY = _ctrl.currentArenaY + 32;
+	breakoutSetBounds(_ctrl.currentArenaX, _ctrl.currentArenaY, _ctrl.arenaW, _ctrl.arenaH);
+	breakoutResetBat();
 	breakoutBuildRandomField(_ctrl.gridCols, _ctrl.gridRows, _ctrl.gridCell, _ctrl.gridStartX, _ctrl.gridStartY);
 	breakoutResetBallStack();
 	_ctrl.state = "PLAYING";
@@ -349,4 +392,29 @@ function breakoutRequestShowdownWatch(_ctrl) {
 	if (_ctrl.breakoutBrokerConnected) {
 		rouletteSendJson(_ctrl.breakoutBrokerSocket, { type: "table_watch", game: _ctrl.showdownGameKey });
 	}
+}
+
+function breakoutReadTelemetry(_ctrl) {
+	var out = {
+		batNorm: 0.5,
+		ballXNorm: 0.5,
+		ballYNorm: 0.85,
+		brickCount: instance_number(objBrick)
+	};
+	var ax = _ctrl.currentArenaX;
+	var ay = _ctrl.currentArenaY;
+	var aw = max(1, _ctrl.arenaW);
+	var ah = max(1, _ctrl.arenaH);
+
+	if (instance_exists(objBat)) {
+		out.batNorm = clamp((objBat.x - ax) / aw, 0, 1);
+	}
+	if (instance_exists(objBall)) {
+		out.ballXNorm = clamp((objBall.x - ax) / aw, 0, 1);
+		out.ballYNorm = clamp((objBall.y - ay) / ah, 0, 1);
+	} else if (instance_exists(objBallExtra)) {
+		out.ballXNorm = clamp((objBallExtra.x - ax) / aw, 0, 1);
+		out.ballYNorm = clamp((objBallExtra.y - ay) / ah, 0, 1);
+	}
+	return out;
 }

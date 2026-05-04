@@ -13,6 +13,62 @@ draw_set_valign(fa_bottom);
 draw_set_colour(make_color_rgb(220, 230, 230));
 draw_text(room_width * 0.5, room_height - 8, statusText);
 
+function drawBreakoutTelemetryField(_x, _y, _w, _h, _name, _bo, _isLocalFocus) {
+	draw_set_colour(make_color_rgb(14, 18, 28));
+	draw_roundrect(_x, _y, _x + _w, _y + _h, false);
+	draw_set_colour(_isLocalFocus ? make_color_rgb(110, 188, 236) : make_color_rgb(86, 130, 176));
+	draw_roundrect(_x, _y, _x + _w, _y + _h, true);
+
+	var score = rouletteStructGet(_bo, "score", 0);
+	var levelBo = rouletteStructGet(_bo, "level", 1);
+	var lives = rouletteStructGet(_bo, "lives", 3);
+	var distance = rouletteStructGet(_bo, "distance", 0);
+	var batNorm = clamp(rouletteStructGet(_bo, "batNorm", 0.5), 0, 1);
+	var ballXNorm = clamp(rouletteStructGet(_bo, "ballXNorm", 0.5), 0, 1);
+	var ballYNorm = clamp(rouletteStructGet(_bo, "ballYNorm", 0.85), 0, 1);
+	var brickCount = max(0, floor(rouletteStructGet(_bo, "brickCount", 0)));
+
+	draw_set_halign(fa_left);
+	draw_set_valign(fa_top);
+	draw_set_colour(c_white);
+	draw_text(_x + 10, _y + 8, _name);
+	draw_set_colour(make_color_rgb(188, 202, 220));
+	draw_text(_x + 10, _y + 26, "Score " + string(score) + " | Level " + string(levelBo) + " | Lives " + string(lives));
+	draw_text(_x + 10, _y + 42, "Distance " + string(distance));
+
+	var boardX = _x + 32;
+	var boardY = _y + 70;
+	var boardW = _w - 64;
+	var boardH = _h - 96;
+	draw_set_colour(make_color_rgb(8, 12, 18));
+	draw_rectangle(boardX, boardY, boardX + boardW, boardY + boardH, false);
+
+	var cols = 18;
+	var rows = 6;
+	var cellW = boardW / cols;
+	var cellH = 18;
+	draw_set_colour(make_color_rgb(96, 170, 228));
+	for (var i = 0; i < brickCount; i++) {
+		var c = i mod cols;
+		var r = floor(i / cols);
+		if (r >= rows) break;
+		var bx1 = boardX + c * cellW + 2;
+		var by1 = boardY + r * cellH + 2;
+		draw_rectangle(bx1, by1, bx1 + cellW - 4, by1 + cellH - 4, false);
+	}
+
+	var batY = boardY + boardH - 18;
+	var batHalf = 42;
+	var batX = boardX + batNorm * boardW;
+	draw_set_colour(make_color_rgb(120, 255, 166));
+	draw_rectangle(batX - batHalf, batY, batX + batHalf, batY + 8, false);
+
+	var ballX = boardX + ballXNorm * boardW;
+	var ballY = boardY + ballYNorm * boardH;
+	draw_set_colour(make_color_rgb(255, 224, 160));
+	draw_circle(ballX, ballY, 5, false);
+}
+
 if (state == "START") {
 	draw_set_halign(fa_center);
 	draw_set_valign(fa_middle);
@@ -137,6 +193,8 @@ if (state == "PLAYING" || state == "GAMEOVER") {
 	draw_text(8, 52, "Score: " + string(global.BOPScore));
 	draw_text(8, 70, "Level: " + string(level));
 	draw_text(8, 88, "Lives: " + string(max(0, global.BOPLives)));
+	draw_set_colour(make_color_rgb(44, 94, 142));
+	draw_roundrect(currentArenaX - 6, currentArenaY - 6, currentArenaX + arenaW + 6, currentArenaY + arenaH + 6, true);
 
 	if (mode == "showdown") {
 		draw_set_colour(make_color_rgb(16, 26, 40));
@@ -148,7 +206,31 @@ if (state == "PLAYING" || state == "GAMEOVER") {
 		draw_text(208, 74, "Score " + string(opponentScore) + " | Level " + string(opponentLevel) + " | Lives " + string(opponentLives));
 		draw_text(208, 92, "Distance " + string(opponentDistance));
 		draw_text(208, 110, "Showdown state: " + showdownState);
+
+		var opponentBo = {
+			score: opponentScore,
+			level: opponentLevel,
+			lives: opponentLives,
+			distance: opponentDistance,
+			batNorm: opponentBatNorm,
+			ballXNorm: opponentBallXNorm,
+			ballYNorm: opponentBallYNorm,
+			brickCount: opponentBrickCount
+		};
+		drawBreakoutTelemetryField(showdownArenaRightX, showdownArenaY, arenaW, arenaH, opponentName, opponentBo, false);
 	}
+}
+
+if (state == "SHOWDOWN_WATCH") {
+	draw_set_halign(fa_center);
+	draw_set_valign(fa_top);
+	draw_set_colour(c_white);
+	draw_text(room_width * 0.5, 108, "SHOWDOWN LIVE WATCH");
+	draw_set_colour(make_color_rgb(188, 202, 220));
+	draw_text(room_width * 0.5, 128, "Esc to return to lobby controls");
+
+	drawBreakoutTelemetryField(showdownArenaLeftX, showdownArenaY, arenaW, arenaH, showdownP1Name, showdownP1Breakout, showdownPlayer1Id == breakoutPlayerId);
+	drawBreakoutTelemetryField(showdownArenaRightX, showdownArenaY, arenaW, arenaH, showdownP2Name, showdownP2Breakout, showdownPlayer2Id == breakoutPlayerId);
 }
 
 if (state == "GAMEOVER" && mode == "solo") {

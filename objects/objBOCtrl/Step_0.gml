@@ -112,6 +112,14 @@ if (state == "SHOWDOWN_LOBBY") {
 	exit;
 }
 
+if (state == "SHOWDOWN_WATCH") {
+	if (keyboard_check_pressed(vk_escape)) {
+		state = "SHOWDOWN_LOBBY";
+		statusText = showdownSummary;
+	}
+	exit;
+}
+
 if (state == "GAMEOVER") {
 	if (mode == "solo") {
 		if (!payoutSettled) {
@@ -140,13 +148,18 @@ if (state == "GAMEOVER") {
 		}
 	} else if (mode == "showdown") {
 		if (!localRaceSubmitted && breakoutBrokerConnected) {
+			var finishTelemetry = breakoutReadTelemetry(id);
 			localRaceSubmitted = true;
 			rouletteSendJson(breakoutBrokerSocket, {
 				type: "table_breakout_finish",
 				score: global.BOPScore,
 				level: level,
 				lives: max(0, global.BOPLives),
-				distance: breakoutDistance(id)
+				distance: breakoutDistance(id),
+				batNorm: finishTelemetry.batNorm,
+				ballXNorm: finishTelemetry.ballXNorm,
+				ballYNorm: finishTelemetry.ballYNorm,
+				brickCount: finishTelemetry.brickCount
 			});
 			statusText = "Waiting for showdown result...";
 		}
@@ -164,13 +177,18 @@ if (state == "PLAYING") {
 	if (mode == "showdown" && breakoutBrokerConnected) {
 		progressSendCooldown += 1;
 		if (progressSendCooldown >= 10) {
+			var telemetry = breakoutReadTelemetry(id);
 			progressSendCooldown = 0;
 			rouletteSendJson(breakoutBrokerSocket, {
 				type: "table_breakout_progress",
 				score: global.BOPScore,
 				level: level,
 				lives: max(0, global.BOPLives),
-				distance: breakoutDistance(id)
+				distance: breakoutDistance(id),
+				batNorm: telemetry.batNorm,
+				ballXNorm: telemetry.ballXNorm,
+				ballYNorm: telemetry.ballYNorm,
+				brickCount: telemetry.brickCount
 			});
 		}
 	}

@@ -66,16 +66,37 @@ opponentScore = 0;
 opponentLevel = 1;
 opponentLives = 3;
 opponentDistance = 0;
+opponentBatNorm = 0.5;
+opponentBallXNorm = 0.5;
+opponentBallYNorm = 0.85;
+opponentBrickCount = 0;
+
+showdownPlayer1Id = "";
+showdownPlayer2Id = "";
+showdownP1Name = "Player 1";
+showdownP2Name = "Player 2";
+showdownP1Breakout = { score: 0, level: 1, lives: 3, distance: 0, batNorm: 0.5, ballXNorm: 0.5, ballYNorm: 0.85, brickCount: 0 };
+showdownP2Breakout = { score: 0, level: 1, lives: 3, distance: 0, batNorm: 0.5, ballXNorm: 0.5, ballYNorm: 0.85, brickCount: 0 };
+
+arenaW = 640;
+arenaH = 480;
+soloArenaX = floor((room_width - arenaW) * 0.5);
+soloArenaY = floor((room_height - arenaH) * 0.5);
+showdownArenaLeftX = 20;
+showdownArenaRightX = room_width - 20 - arenaW;
+showdownArenaY = floor((room_height - arenaH) * 0.5);
+currentArenaX = soloArenaX;
+currentArenaY = soloArenaY;
 
 gridCell = 32;
 gridCols = 18;
 gridRows = 6;
-gridStartX = 32;
-gridStartY = 32;
+gridStartX = currentArenaX + 32;
+gridStartY = currentArenaY + 32;
 defaultGridRows = 6;
-defaultGridStartY = 32;
-showdownGridRows = 4;
-showdownGridStartY = 236;
+defaultGridStartY = currentArenaY + 32;
+showdownGridRows = 6;
+showdownGridStartY = showdownArenaY + 32;
 
 if (breakoutBrokerSocket < 0) {
 	breakoutBrokerSocket = network_create_socket(network_socket_ws);
