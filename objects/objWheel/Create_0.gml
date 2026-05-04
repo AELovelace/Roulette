@@ -25,7 +25,7 @@ ballSpeed = 0;
 ballDecel = 0.985;
 ballMinSpeed = 0.1;
 ballSettleRate = 0.18;
-ballRadius = 150;
+ballRadius = 325;
 ballState = 0;
 resultLocked = false;
 betsResolved = true;
@@ -68,13 +68,13 @@ currentLobbyName = "No lobby";
 lobbyList = [];
 activePlayers = [];
 selectedLobbyId = "";
-lobbyBrowserOpen = multiplayerEnabled;
+rouletteLobbyOpen = multiplayerEnabled;
 playerName = "Player " + string(irandom_range(1000, 9999));
 pendingSpinPlan = undefined;
 activeSpinId = -1;
 
-tableX = 60;
-tableY = 470;
+tableX = VIEW_W * 0.1;
+tableY = VIEW_H * 0.2;
 zeroW = 54;
 cellW = 38;
 cellH = cellW;
@@ -86,8 +86,9 @@ feltPadX = 14;
 feltPadTop = 54;
 feltPadBottom = 28;
 
-panelX = tableX + tableW + 24;
-panelY = tableY;
+//panelX = tableX + tableW + 24;
+panelX = VIEW_W * 0.1;
+panelY = VIEW_H * 0.4;
 spinButton = { x: panelX, y: panelY, w: 150, h: 40 };
 clearButton = { x: panelX, y: panelY + 48, w: 150, h: 34 };
 lobbyButton = { x: VIEW_W - 360, y: 20, w: 140, h: 34 };
@@ -100,9 +101,10 @@ lobbyPanel = {
 	x2: VIEW_W * 0.5 + 300,
 	y2: 520
 };
-createLobbyButton = { x: lobbyPanel.x1 + 28, y: lobbyPanel.y2 - 72, w: 160, h: 42 };
-joinLobbyButton = { x: lobbyPanel.x1 + 214, y: lobbyPanel.y2 - 72, w: 160, h: 42 };
-leaveLobbyButton = { x: lobbyPanel.x1 + 400, y: lobbyPanel.y2 - 72, w: 160, h: 42 };
+createLobbyButton = { x: VIEW_W * 0.5 - 276, y: 508, w: 170, h: 52 };
+joinLobbyButton = { x: VIEW_W * 0.5 - 86, y: 508, w: 170, h: 52 };
+leaveLobbyButton = { x: VIEW_W * 0.5 + 104, y: 508, w: 170, h: 52 };
+enterLobbyButton = { x: VIEW_W * 0.5 - 135, y: 570, w: 270, h: 48 };
 
 function addBetArea(_key, _label, _x, _y, _w, _h, _covered, _payout, _baseColor, _textColor) {
 	array_push(betAreas, {

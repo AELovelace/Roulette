@@ -4,10 +4,10 @@ var startRequested = keyboard_check_pressed(vk_space);
 var mouseLeftPressed = mouse_check_button_pressed(mb_left);
 var mouseRightPressed = mouse_check_button_pressed(mb_right);
 var mouseInsideTable = false;
-var mouseXPos = mouse_x;
-var mouseYPos = mouse_y;
+var mouseXPos = device_mouse_x_to_gui(0);
+var mouseYPos = device_mouse_y_to_gui(0);
 var brokerMode = multiplayerEnabled && brokerConnected;
-var canEditTable = !spinActive && ballState != 1 && (!brokerMode || (brokerPhase == "betting" && !lobbyBrowserOpen && currentLobbyId != ""));
+var canEditTable = !spinActive && ballState != 1 && (!multiplayerEnabled || (brokerConnected && brokerPhase == "betting" && !rouletteLobbyOpen && currentLobbyId != ""));
 
 // --- dynamic layout (recalculate each step so resize is instant) ---
 viewResize();
@@ -15,9 +15,14 @@ lobbyButton.x    = VIEW_W - 360;
 menuButton.x     = VIEW_W - 200;
 lobbyPanel.x1    = VIEW_W * 0.5 - 300;
 lobbyPanel.x2    = VIEW_W * 0.5 + 300;
-createLobbyButton.x = lobbyPanel.x1 + 28;
-joinLobbyButton.x   = lobbyPanel.x1 + 214;
-leaveLobbyButton.x  = lobbyPanel.x1 + 400;
+createLobbyButton.x = VIEW_W * 0.5 - 276;
+createLobbyButton.y = 508;
+joinLobbyButton.x   = VIEW_W * 0.5 - 86;
+joinLobbyButton.y   = 508;
+leaveLobbyButton.x  = VIEW_W * 0.5 + 104;
+leaveLobbyButton.y  = 508;
+enterLobbyButton.x  = VIEW_W * 0.5 - 135;
+enterLobbyButton.y  = 570;
 // --- end dynamic layout ---
 
 function returnToMenuRoom() {
@@ -61,44 +66,58 @@ if (is_struct(pendingSpinPlan) && activeSpinId != rouletteStructGet(pendingSpinP
     pendingSpinPlan = undefined;
 }
 
-if (brokerMode && lobbyBrowserOpen) {
-    if (keyboard_check_pressed(vk_escape) && currentLobbyId != "") {
-        lobbyBrowserOpen = false;
+if (multiplayerEnabled && rouletteLobbyOpen) {
+    if (mouseLeftPressed && pointInButton(menuButton, mouseXPos, mouseYPos)) {
+        returnToMenuRoom();
     }
 
-    if (keyboard_check_pressed(vk_enter) && selectedLobbyId != "") {
-        rouletteSendJson(brokerSocket, { type: "join_lobby", lobbyId: selectedLobbyId });
+    if (keyboard_check_pressed(vk_escape) && currentLobbyId != "") {
+        rouletteLobbyOpen = false;
+    }
+
+    if ((keyboard_check_pressed(vk_enter) || keyboard_check_pressed(vk_space)) && currentLobbyId != "") {
+        rouletteLobbyOpen = false;
+        lastSpinSummary = "Joined " + currentLobbyName + ".";
     }
 
     if (mouseLeftPressed) {
-        var entryY = lobbyPanel.y1 + 94;
-        var entryH = 34;
+        var entryY = 338;
+        var entryH = 28;
 
         for (var lobbyIndex = 0; lobbyIndex < array_length(lobbyList); lobbyIndex++) {
             var lobbyEntry = lobbyList[lobbyIndex];
-            var rowTop = entryY + (lobbyIndex * (entryH + 8));
-            if (point_in_rectangle(mouseXPos, mouseYPos, lobbyPanel.x1 + 26, rowTop, lobbyPanel.x2 - 26, rowTop + entryH)) {
+            var rowTop = entryY + (lobbyIndex * 34);
+            if (point_in_rectangle(mouseXPos, mouseYPos, VIEW_W * 0.5 - 300, rowTop, VIEW_W * 0.5 + 300, rowTop + entryH)) {
                 selectedLobbyId = rouletteStructGet(lobbyEntry, "id", "");
                 break;
             }
         }
 
-        if (pointInButton(createLobbyButton, mouseXPos, mouseYPos)) {
-            rouletteSendJson(brokerSocket, { type: "create_lobby" });
+        if (brokerConnected) {
+            if (pointInButton(createLobbyButton, mouseXPos, mouseYPos)) {
+                rouletteSendJson(brokerSocket, { type: "create_lobby" });
+            }
+
+            if (pointInButton(joinLobbyButton, mouseXPos, mouseYPos) && selectedLobbyId != "") {
+                rouletteSendJson(brokerSocket, { type: "join_lobby", lobbyId: selectedLobbyId });
+            }
+
+            if (pointInButton(leaveLobbyButton, mouseXPos, mouseYPos) && currentLobbyId != "") {
+                rouletteSendJson(brokerSocket, { type: "leave_lobby" });
+            }
         }
 
-        if (pointInButton(joinLobbyButton, mouseXPos, mouseYPos) && selectedLobbyId != "") {
-            rouletteSendJson(brokerSocket, { type: "join_lobby", lobbyId: selectedLobbyId });
-        }
-
-        if (pointInButton(leaveLobbyButton, mouseXPos, mouseYPos) && currentLobbyId != "") {
-            rouletteSendJson(brokerSocket, { type: "leave_lobby" });
+        if (pointInButton(enterLobbyButton, mouseXPos, mouseYPos) && currentLobbyId != "") {
+            rouletteLobbyOpen = false;
+            lastSpinSummary = "Joined " + currentLobbyName + ".";
         }
     }
+
+    exit;
 }
 
-if (brokerMode && mouseLeftPressed && pointInButton(lobbyButton, mouseXPos, mouseYPos)) {
-    lobbyBrowserOpen = !lobbyBrowserOpen;
+if (multiplayerEnabled && mouseLeftPressed && pointInButton(lobbyButton, mouseXPos, mouseYPos)) {
+    rouletteLobbyOpen = true;
 }
 
 if (canEditTable) {

@@ -23,7 +23,7 @@ tableDescriptions = [
 	"Eight-seat Hold'em with shared pot and turns.",
 	"Twenty-seat races; host starts and all picks are visible."
 ];
-tableRooms = [Room1, RoomSlots, RoomPachinko, RoomBlackjack, RoomHoldem, RoomHorseRace];
+tableRooms = [RoomRoulette, RoomSlots, RoomPachinko, RoomBlackjack, RoomHoldem, RoomHorseRace];
 
 function lobbyButton(_index) {
 	var columns = 3;

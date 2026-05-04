@@ -35,6 +35,7 @@ switch (eventType) {
 			brokerStatus = "Disconnected";
 			brokerPlayerCount = 1;
 			activePlayers = [];
+			rouletteLobbyOpen = true;
 		}
 	break;
 
@@ -83,6 +84,7 @@ switch (eventType) {
 				}
 
 				if (messageKind == "state") {
+					var hadLobby = (currentLobbyId != "");
 					brokerPhase = rouletteStructGet(message, "phase", brokerPhase);
 					brokerPlayerCount = rouletteStructGet(message, "playerCount", brokerPlayerCount);
 					activePlayers = rouletteStructGet(message, "activePlayers", activePlayers);
@@ -119,9 +121,11 @@ switch (eventType) {
 						selectedLobbyId = "";
 					}
 
-					lobbyBrowserOpen = brokerConnected && (currentLobbyId == "" || lobbyBrowserOpen);
-					if (currentLobbyId != "") {
-						lobbyBrowserOpen = false;
+					if (currentLobbyId == "") {
+						rouletteLobbyOpen = true;
+					}
+					if (!hadLobby && currentLobbyId != "") {
+						rouletteLobbyOpen = true;
 					}
 
 					if (!is_struct(incomingSpinPlan) && brokerPhase != "spinning") {
