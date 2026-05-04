@@ -29,6 +29,14 @@ hoverBetP1 = point_in_rectangle(mx, my, betP1Button.x1, betP1Button.y1, betP1But
 hoverBetP2 = point_in_rectangle(mx, my, betP2Button.x1, betP2Button.y1, betP2Button.x2, betP2Button.y2);
 hoverBetSend = point_in_rectangle(mx, my, betSendButton.x1, betSendButton.y1, betSendButton.x2, betSendButton.y2);
 
+var lerpRate = 0.2;
+showdownP1BallXDraw = lerp(showdownP1BallXDraw, clamp(rouletteStructGet(showdownP1Breakout, "ballXNorm", 0.5), 0, 1), lerpRate);
+showdownP1BallYDraw = lerp(showdownP1BallYDraw, clamp(rouletteStructGet(showdownP1Breakout, "ballYNorm", 0.85), 0, 1), lerpRate);
+showdownP2BallXDraw = lerp(showdownP2BallXDraw, clamp(rouletteStructGet(showdownP2Breakout, "ballXNorm", 0.5), 0, 1), lerpRate);
+showdownP2BallYDraw = lerp(showdownP2BallYDraw, clamp(rouletteStructGet(showdownP2Breakout, "ballYNorm", 0.85), 0, 1), lerpRate);
+showdownP1BatDraw = lerp(showdownP1BatDraw, clamp(rouletteStructGet(showdownP1Breakout, "batNorm", 0.5), 0, 1), lerpRate);
+showdownP2BatDraw = lerp(showdownP2BatDraw, clamp(rouletteStructGet(showdownP2Breakout, "batNorm", 0.5), 0, 1), lerpRate);
+
 if (state == "START") {
 	if (keyboard_check_pressed(vk_escape)) {
 		room_goto(RoomArcadeLobby);
@@ -160,7 +168,8 @@ if (state == "GAMEOVER") {
 				ballXNorm: finishTelemetry.ballXNorm,
 				ballYNorm: finishTelemetry.ballYNorm,
 				brickCount: finishTelemetry.brickCount,
-				brickMask: finishTelemetry.brickMask
+				brickMask: finishTelemetry.brickMask,
+				brickColorMask: finishTelemetry.brickColorMask
 			});
 			statusText = "Waiting for showdown result...";
 		}
@@ -190,7 +199,8 @@ if (state == "PLAYING") {
 				ballXNorm: telemetry.ballXNorm,
 				ballYNorm: telemetry.ballYNorm,
 				brickCount: telemetry.brickCount,
-				brickMask: telemetry.brickMask
+				brickMask: telemetry.brickMask,
+				brickColorMask: telemetry.brickColorMask
 			});
 		}
 	}

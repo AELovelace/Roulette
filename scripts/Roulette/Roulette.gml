@@ -423,7 +423,8 @@ function breakoutReadTelemetry(_ctrl) {
 		ballXNorm: 0.5,
 		ballYNorm: 0.85,
 		brickCount: instance_number(objBrick),
-		brickMask: ""
+		brickMask: "",
+		brickColorMask: ""
 	};
 	var ax = _ctrl.currentArenaX;
 	var ay = _ctrl.currentArenaY;
@@ -442,18 +443,29 @@ function breakoutReadTelemetry(_ctrl) {
 	}
 
 	var marks = array_create(_ctrl.gridCols * _ctrl.gridRows, 0);
+	var colors = array_create(_ctrl.gridCols * _ctrl.gridRows, 0);
 	for (var i = 0; i < instance_number(objBrick); i++) {
 		var b = instance_find(objBrick, i);
 		if (!instance_exists(b)) continue;
 		var c = round((b.x - _ctrl.gridStartX) / _ctrl.gridCell);
 		var r = round((b.y - _ctrl.gridStartY) / _ctrl.gridCell);
 		if (c >= 0 && c < _ctrl.gridCols && r >= 0 && r < _ctrl.gridRows) {
-			marks[r * _ctrl.gridCols + c] = 1;
+			var idx = r * _ctrl.gridCols + c;
+			marks[idx] = 1;
+			var blend = b.image_blend;
+			var colorCode = 6;
+			if (blend == c_red) colorCode = 1;
+			else if (blend == c_yellow) colorCode = 2;
+			else if (blend == c_blue) colorCode = 3;
+			else if (blend == c_green) colorCode = 4;
+			else if (blend == c_fuchsia) colorCode = 5;
+			colors[idx] = colorCode;
 		}
 	}
 
 	for (var m = 0; m < array_length(marks); m++) {
 		out.brickMask += string(marks[m]);
+		out.brickColorMask += string(colors[m]);
 	}
 	return out;
 }

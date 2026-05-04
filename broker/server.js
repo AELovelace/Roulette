@@ -886,6 +886,7 @@ function createEmptyTableSeat(player) {
       ballYNorm: 0.85,
       brickCount: 0,
       brickMask: "",
+      brickColorMask: "",
       finished: false,
       acceptedRematch: null,
     },
@@ -1017,6 +1018,7 @@ function breakoutResetRaceSeat(seat) {
   seat.breakout.ballYNorm = 0.85;
   seat.breakout.brickCount = 0;
   seat.breakout.brickMask = "";
+  seat.breakout.brickColorMask = "";
   seat.breakout.finished = false;
   seat.breakout.acceptedRematch = null;
   seat.status = "Ready";
@@ -2062,6 +2064,7 @@ function breakoutProgressUpdate(player, payload) {
   seat.breakout.ballYNorm = Math.min(1, Math.max(0, Number(payload?.ballYNorm) || seat.breakout.ballYNorm));
   seat.breakout.brickCount = Math.max(0, Number(payload?.brickCount) || seat.breakout.brickCount);
   seat.breakout.brickMask = typeof payload?.brickMask === "string" ? payload.brickMask.slice(0, 108) : seat.breakout.brickMask;
+  seat.breakout.brickColorMask = typeof payload?.brickColorMask === "string" ? payload.brickColorMask.slice(0, 108) : seat.breakout.brickColorMask;
   seat.breakout.distance = Math.max(seat.breakout.distance, breakoutScoreDistance(seat.breakout.level, seat.breakout.score));
   if (seat.breakout.lives <= 0) {
     seat.breakout.finished = true;
@@ -2084,6 +2087,7 @@ async function breakoutFinish(player, payload) {
   seat.breakout.ballYNorm = Math.min(1, Math.max(0, Number(payload?.ballYNorm) || seat.breakout.ballYNorm));
   seat.breakout.brickCount = Math.max(0, Number(payload?.brickCount) || seat.breakout.brickCount);
   seat.breakout.brickMask = typeof payload?.brickMask === "string" ? payload.brickMask.slice(0, 108) : seat.breakout.brickMask;
+  seat.breakout.brickColorMask = typeof payload?.brickColorMask === "string" ? payload.brickColorMask.slice(0, 108) : seat.breakout.brickColorMask;
   seat.breakout.distance = Math.max(
     seat.breakout.distance,
     Math.max(0, Number(payload?.distance) || 0),

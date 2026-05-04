@@ -13,7 +13,7 @@ draw_set_valign(fa_bottom);
 draw_set_colour(make_color_rgb(220, 230, 230));
 draw_text(room_width * 0.5, room_height - 8, statusText);
 
-function drawBreakoutTelemetryField(_px, _py, _pw, _ph, _title, _telemetry, _localFocus) {
+function drawBreakoutTelemetryField(_px, _py, _pw, _ph, _title, _telemetry, _localFocus, _ballXOverride, _ballYOverride, _batOverride) {
 	draw_set_colour(make_color_rgb(14, 18, 28));
 	draw_roundrect(_px, _py, _px + _pw, _py + _ph, false);
 	draw_set_colour(_localFocus ? make_color_rgb(110, 188, 236) : make_color_rgb(86, 130, 176));
@@ -23,11 +23,24 @@ function drawBreakoutTelemetryField(_px, _py, _pw, _ph, _title, _telemetry, _loc
 	var tLevel = rouletteStructGet(_telemetry, "level", 1);
 	var tLives = rouletteStructGet(_telemetry, "lives", 3);
 	var tDistance = rouletteStructGet(_telemetry, "distance", 0);
-	var tBatNorm = clamp(rouletteStructGet(_telemetry, "batNorm", 0.5), 0, 1);
-	var tBallXNorm = clamp(rouletteStructGet(_telemetry, "ballXNorm", 0.5), 0, 1);
-	var tBallYNorm = clamp(rouletteStructGet(_telemetry, "ballYNorm", 0.85), 0, 1);
+	var tBatNorm = clamp(_batOverride >= 0 ? _batOverride : rouletteStructGet(_telemetry, "batNorm", 0.5), 0, 1);
+	var tBallXNorm = clamp(_ballXOverride >= 0 ? _ballXOverride : rouletteStructGet(_telemetry, "ballXNorm", 0.5), 0, 1);
+	var tBallYNorm = clamp(_ballYOverride >= 0 ? _ballYOverride : rouletteStructGet(_telemetry, "ballYNorm", 0.85), 0, 1);
 	var tBrickCount = max(0, floor(rouletteStructGet(_telemetry, "brickCount", 0)));
 	var tBrickMask = rouletteStructGet(_telemetry, "brickMask", "");
+	var tBrickColorMask = rouletteStructGet(_telemetry, "brickColorMask", "");
+
+	function brickColorFromCode(_code) {
+		switch (_code) {
+			case "1": return c_red;
+			case "2": return c_yellow;
+			case "3": return c_blue;
+			case "4": return c_green;
+			case "5": return c_fuchsia;
+			case "6": return c_orange;
+		}
+		return make_color_rgb(96, 170, 228);
+	}
 
 	draw_set_halign(fa_left);
 	draw_set_valign(fa_top);
@@ -38,38 +51,46 @@ function drawBreakoutTelemetryField(_px, _py, _pw, _ph, _title, _telemetry, _loc
 	draw_text(_px + 10, _py + 42, "Distance " + string(tDistance));
 
 	var boardX = _px + 32;
-	var boardY = _py + 70;
+	var boardY = _py + 32;
 	var boardW = _pw - 64;
-	var boardH = _ph - 96;
+	var boardH = _ph - 64;
 	draw_set_colour(make_color_rgb(8, 12, 18));
 	draw_rectangle(boardX, boardY, boardX + boardW, boardY + boardH, false);
 
 	var cols = 18;
 	var rows = 6;
-	var cellW = boardW / cols;
-	var cellH = boardH / rows;
+	var cellStepX = 32;
+	var cellStepY = 32;
+	var brickW = 32;
+	var brickH = 16;
 	draw_set_colour(make_color_rgb(96, 170, 228));
 	if (string_length(tBrickMask) >= cols * rows) {
 		for (var i = 0; i < cols * rows; i++) {
 			if (string_char_at(tBrickMask, i + 1) != "1") continue;
 			var c = i mod cols;
 			var r = floor(i / cols);
-			var bx1 = boardX + c * cellW + 2;
-			var by1 = boardY + r * cellH + 2;
-			draw_rectangle(bx1, by1, bx1 + cellW - 4, by1 + cellH - 4, false);
+			if (string_length(tBrickColorMask) >= cols * rows) {
+				draw_set_colour(brickColorFromCode(string_char_at(tBrickColorMask, i + 1)));
+			} else {
+				draw_set_colour(make_color_rgb(96, 170, 228));
+			}
+			var bx1 = boardX + c * cellStepX + 1;
+			var by1 = boardY + r * cellStepY + 1;
+			draw_rectangle(bx1, by1, bx1 + brickW - 2, by1 + brickH - 2, false);
 		}
 	} else {
 		for (var j = 0; j < tBrickCount; j++) {
 			var cc = j mod cols;
 			var rr = floor(j / cols);
 			if (rr >= rows) break;
-			var bbx1 = boardX + cc * cellW + 2;
-			var bby1 = boardY + rr * cellH + 2;
-			draw_rectangle(bbx1, bby1, bbx1 + cellW - 4, bby1 + cellH - 4, false);
+			draw_set_colour(make_color_rgb(96, 170, 228));
+			var bbx1 = boardX + cc * cellStepX + 1;
+			var bby1 = boardY + rr * cellStepY + 1;
+			draw_rectangle(bbx1, bby1, bbx1 + brickW - 2, bby1 + brickH - 2, false);
 		}
 	}
 
-	var batY = boardY + boardH - 18;
+	var batY = boardY + boardH - 14;
 	var batHalf = 42;
 	var batX = boardX + tBatNorm * boardW;
 	draw_set_colour(make_color_rgb(120, 255, 166));
@@ -209,10 +230,21 @@ if (state == "PLAYING" || state == "GAMEOVER") {
 	draw_roundrect(currentArenaX - 6, currentArenaY - 6, currentArenaX + arenaW + 6, currentArenaY + arenaH + 6, true);
 
 	if (mode == "showdown") {
+		var localIsP1Label = breakoutPlayerId != "" && breakoutPlayerId == showdownPlayer1Id;
+		var localLabel = localIsP1Label ? showdownP1Name : showdownP2Name;
+		draw_set_halign(fa_center);
+		draw_set_valign(fa_bottom);
+		draw_set_colour(c_white);
+		draw_text(currentArenaX + arenaW * 0.5, currentArenaY - 10, localLabel);
+	}
+
+	if (mode == "showdown") {
 		var localIsP1 = breakoutPlayerId != "" && breakoutPlayerId == showdownPlayer1Id;
 		var remoteName = localIsP1 ? showdownP2Name : showdownP1Name;
 		var remoteBo = localIsP1 ? showdownP2Breakout : showdownP1Breakout;
 		var remoteArenaX = localIsP1 ? showdownArenaRightX : showdownArenaLeftX;
+		var remoteBallXDraw = localIsP1 ? showdownP2BallXDraw : showdownP1BallXDraw;
+		var remoteBallYDraw = localIsP1 ? showdownP2BallYDraw : showdownP1BallYDraw;
 
 		draw_set_colour(make_color_rgb(16, 26, 40));
 		draw_roundrect(198, 48, room_width - 8, 124, false);
@@ -223,7 +255,12 @@ if (state == "PLAYING" || state == "GAMEOVER") {
 		draw_text(208, 74, "Score " + string(rouletteStructGet(remoteBo, "score", 0)) + " | Level " + string(rouletteStructGet(remoteBo, "level", 1)) + " | Lives " + string(rouletteStructGet(remoteBo, "lives", 3)));
 		draw_text(208, 92, "Distance " + string(rouletteStructGet(remoteBo, "distance", 0)));
 		draw_text(208, 110, "Showdown state: " + showdownState);
-		drawBreakoutTelemetryField(remoteArenaX, showdownArenaY, arenaW, arenaH, remoteName, remoteBo, false);
+		draw_set_halign(fa_center);
+		draw_set_valign(fa_bottom);
+		draw_set_colour(c_white);
+		draw_text(remoteArenaX + arenaW * 0.5, showdownArenaY - 10, remoteName);
+		var remoteBatDraw = localIsP1 ? showdownP2BatDraw : showdownP1BatDraw;
+		drawBreakoutTelemetryField(remoteArenaX, showdownArenaY, arenaW, arenaH, remoteName, remoteBo, false, remoteBallXDraw, remoteBallYDraw, remoteBatDraw);
 	}
 }
 
@@ -235,8 +272,14 @@ if (state == "SHOWDOWN_WATCH") {
 	draw_set_colour(make_color_rgb(188, 202, 220));
 	draw_text(room_width * 0.5, 128, "Esc to return to lobby controls");
 
-	drawBreakoutTelemetryField(showdownArenaLeftX, showdownArenaY, arenaW, arenaH, showdownP1Name, showdownP1Breakout, showdownPlayer1Id == breakoutPlayerId);
-	drawBreakoutTelemetryField(showdownArenaRightX, showdownArenaY, arenaW, arenaH, showdownP2Name, showdownP2Breakout, showdownPlayer2Id == breakoutPlayerId);
+	draw_set_halign(fa_center);
+	draw_set_valign(fa_bottom);
+	draw_set_colour(c_white);
+	draw_text(showdownArenaLeftX + arenaW * 0.5, showdownArenaY - 10, showdownP1Name);
+	draw_text(showdownArenaRightX + arenaW * 0.5, showdownArenaY - 10, showdownP2Name);
+
+	drawBreakoutTelemetryField(showdownArenaLeftX, showdownArenaY, arenaW, arenaH, showdownP1Name, showdownP1Breakout, showdownPlayer1Id == breakoutPlayerId, showdownP1BallXDraw, showdownP1BallYDraw, showdownP1BatDraw);
+	drawBreakoutTelemetryField(showdownArenaRightX, showdownArenaY, arenaW, arenaH, showdownP2Name, showdownP2Breakout, showdownPlayer2Id == breakoutPlayerId, showdownP2BallXDraw, showdownP2BallYDraw, showdownP2BatDraw);
 }
 
 if (state == "GAMEOVER" && mode == "solo") {

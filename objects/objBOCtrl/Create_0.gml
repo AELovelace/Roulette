@@ -76,8 +76,14 @@ showdownPlayer1Id = "";
 showdownPlayer2Id = "";
 showdownP1Name = "Player 1";
 showdownP2Name = "Player 2";
-showdownP1Breakout = { score: 0, level: 1, lives: 3, distance: 0, batNorm: 0.5, ballXNorm: 0.5, ballYNorm: 0.85, brickCount: 0, brickMask: "" };
-showdownP2Breakout = { score: 0, level: 1, lives: 3, distance: 0, batNorm: 0.5, ballXNorm: 0.5, ballYNorm: 0.85, brickCount: 0, brickMask: "" };
+showdownP1Breakout = { score: 0, level: 1, lives: 3, distance: 0, batNorm: 0.5, ballXNorm: 0.5, ballYNorm: 0.85, brickCount: 0, brickMask: "", brickColorMask: "" };
+showdownP2Breakout = { score: 0, level: 1, lives: 3, distance: 0, batNorm: 0.5, ballXNorm: 0.5, ballYNorm: 0.85, brickCount: 0, brickMask: "", brickColorMask: "" };
+showdownP1BallXDraw = 0.5;
+showdownP1BallYDraw = 0.85;
+showdownP2BallXDraw = 0.5;
+showdownP2BallYDraw = 0.85;
+showdownP1BatDraw = 0.5;
+showdownP2BatDraw = 0.5;
 
 arenaW = 640;
 arenaH = 480;

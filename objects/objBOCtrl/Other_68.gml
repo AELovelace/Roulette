@@ -114,8 +114,8 @@ switch (eventType) {
 					showdownRole = "spectator";
 					showdownP1Name = "Player 1";
 					showdownP2Name = "Player 2";
-					showdownP1Breakout = { score: 0, level: 1, lives: 3, distance: 0, batNorm: 0.5, ballXNorm: 0.5, ballYNorm: 0.85, brickCount: 0, brickMask: "" };
-					showdownP2Breakout = { score: 0, level: 1, lives: 3, distance: 0, batNorm: 0.5, ballXNorm: 0.5, ballYNorm: 0.85, brickCount: 0, brickMask: "" };
+					showdownP1Breakout = { score: 0, level: 1, lives: 3, distance: 0, batNorm: 0.5, ballXNorm: 0.5, ballYNorm: 0.85, brickCount: 0, brickMask: "", brickColorMask: "" };
+					showdownP2Breakout = { score: 0, level: 1, lives: 3, distance: 0, batNorm: 0.5, ballXNorm: 0.5, ballYNorm: 0.85, brickCount: 0, brickMask: "", brickColorMask: "" };
 					opponentName = "Waiting...";
 					opponentScore = 0;
 					opponentLevel = 1;
