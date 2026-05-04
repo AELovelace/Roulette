@@ -1,3 +1,5 @@
+// Shared utility script used across menu, roulette, and table scenes.
+// Micro-adjust here: resize policy, safe JSON/network helpers, and reusable roulette math helpers.
 /// @desc VIEW_W / VIEW_H   — dynamic window dimensions (replaces room_width/room_height for layout)
 #macro VIEW_W display_get_gui_width()
 #macro VIEW_H display_get_gui_height()

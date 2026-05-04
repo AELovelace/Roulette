@@ -1,3 +1,5 @@
+// Roulette table setup and constants.
+// Micro-adjust here: spin physics defaults, board dimensions, UI colors, and broker connection defaults.
 //table vars
 rotation = 0;
 target = 0;
@@ -64,6 +66,7 @@ brokerPhase = "local";
 currentLobbyId = "";
 currentLobbyName = "No lobby";
 lobbyList = [];
+activePlayers = [];
 selectedLobbyId = "";
 lobbyBrowserOpen = multiplayerEnabled;
 playerName = "Player " + string(irandom_range(1000, 9999));
@@ -74,7 +77,7 @@ tableX = 60;
 tableY = 470;
 zeroW = 54;
 cellW = 38;
-cellH = 34;
+cellH = cellW;
 colW = 52;
 outsideH = 32;
 tableW = zeroW + (cellW * 12) + colW;
@@ -127,11 +130,9 @@ function buildRange(_startValue, _endValue) {
 }
 
 function buildColumn(_modValue) {
-	var values = [];
-	for (var n = _modValue; n <= 36; n += 3) {
-		array_push(values, n);
-	}
-	return values;
+	var rowIndex = 3 - _modValue;
+	var startValue = (rowIndex * 12) + 1;
+	return buildRange(startValue, startValue + 11);
 }
 
 function buildEvenMoney(_kind) {
@@ -158,11 +159,9 @@ addBetArea("n_0", "0", tableX, tableY, zeroW, cellH * 3, [0], 35, greenCellColor
 
 for (var street = 0; street < 12; street++) {
 	var xCell = tableX + zeroW + (street * cellW);
-	var baseNumber = (street * 3) + 1;
-	var numbers = [baseNumber + 2, baseNumber + 1, baseNumber];
 
 	for (var row = 0; row < 3; row++) {
-		var number = numbers[row];
+		var number = (row * 12) + street + 1;
 		var yCell = tableY + (row * cellH);
 		var cellColor = rouletteIsRed(number) ? redCellColor : blackCellColor;
 		addBetArea("n_" + string(number), string(number), xCell, yCell, cellW, cellH, [number], 35, cellColor, c_white);

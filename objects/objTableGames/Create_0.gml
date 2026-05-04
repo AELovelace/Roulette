@@ -1,3 +1,5 @@
+// Shared table-games scene bootstrap (slots/pachinko/blackjack/holdem/horse).
+// Micro-adjust here: global table theme values, room-to-game mapping, and multiplayer defaults.
 backgroundTop = make_color_rgb(5, 6, 10);
 backgroundBottom = make_color_rgb(34, 15, 38);
 panelColor = make_color_rgb(16, 15, 25);
@@ -770,11 +772,24 @@ function simulatePachinkoPath() {
 
 function simulatePachinkoPathArray() {
 	var path = [];
-	var pos = 3 + irandom(3);
+	var pos = irandom_range(2, pachinkoWidth - 3);
+	var lastDrift = 0;
 	for (var row = 0; row < pachinkoRows; row += 1) {
 		array_push(path, pos);
-		var drift = choose(-1, 1);
+		var driftRoll = irandom(99);
+		var drift = 0;
+		if (driftRoll < 33) drift = -1;
+		else if (driftRoll < 66) drift = 1;
+
+		if (lastDrift != 0 && drift != 0 && drift != lastDrift && irandom(99) < 55) {
+			drift = lastDrift;
+		}
+		if (drift == 0 && lastDrift != 0 && irandom(99) < 35) {
+			drift = lastDrift;
+		}
+
 		pos = clamp(pos + drift, 0, pachinkoWidth - 1);
+		lastDrift = drift;
 	}
 	return path;
 }

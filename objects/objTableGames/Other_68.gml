@@ -1,3 +1,5 @@
+// Table-games network event handler.
+// Micro-adjust here: handshake behavior, signed-in propagation, and table snapshot application.
 var eventType = async_load[? "type"];
 
 switch (eventType) {

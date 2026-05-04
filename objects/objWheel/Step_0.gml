@@ -1,3 +1,5 @@
+// Roulette gameplay step loop.
+// Micro-adjust here: input gates, lobby interactions, and when spin plans transition into active spins.
 var startRequested = keyboard_check_pressed(vk_space);
 var mouseLeftPressed = mouse_check_button_pressed(mb_left);
 var mouseRightPressed = mouse_check_button_pressed(mb_right);

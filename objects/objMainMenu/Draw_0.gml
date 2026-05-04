@@ -1,3 +1,5 @@
+// Main menu renderer.
+// Micro-adjust here: visual style (colors/spacing), button emphasis, and modal readability.
 draw_clear_alpha(backgroundTop, 1);
 
 for (var stripe = 0; stripe < VIEW_H; stripe += 6) {

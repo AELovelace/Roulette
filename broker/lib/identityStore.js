@@ -136,20 +136,34 @@ class IdentityStore {
     return { ...record, created: true };
   }
 
-  bindDiscordId(discordId, appId, displayName = "") {
+  bindDiscordId(discordId, appId, displayName = "", options = {}) {
     const discordKey = String(discordId || "").trim();
     const appKey = String(appId || "").trim();
+    const forceRebind = !!options.forceRebind;
     if (!discordKey || !appKey) {
       throw new Error("discord_id and appId are required");
     }
 
     const existingForDiscord = this.state.appIdByDiscordId[discordKey];
     if (existingForDiscord && existingForDiscord !== appKey) {
-      throw new Error(`discord_id already bound to ${existingForDiscord}`);
+      if (!forceRebind) {
+        throw new Error(`discord_id already bound to ${existingForDiscord}`);
+      }
+      const previousRecord = this.state.usersByAppId[existingForDiscord];
+      if (previousRecord) {
+        this.state.usersByAppId[existingForDiscord] = {
+          ...previousRecord,
+          discordId: "",
+          updatedAt: nowIso(),
+        };
+      }
     }
 
     const ensured = this.ensureAppId(appKey, displayName);
     const nextName = String(displayName || "").trim().slice(0, 24);
+    if (ensured.discordId && ensured.discordId !== discordKey) {
+      delete this.state.appIdByDiscordId[ensured.discordId];
+    }
     const updated = {
       ...ensured,
       discordId: discordKey,

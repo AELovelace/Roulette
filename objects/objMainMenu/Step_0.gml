@@ -1,3 +1,5 @@
+// Main menu runtime controller.
+// Micro-adjust here: interaction timing (OAuth polling cadence), keyboard/mouse behavior, and per-frame layout anchoring.
 var mouseXPos = device_mouse_x_to_gui(0);
 var mouseYPos = device_mouse_y_to_gui(0);
 hoveredButton = "";

@@ -1,3 +1,5 @@
+// Roulette table renderer.
+// Micro-adjust here: table readability, chip legibility, and panel/widget placement.
 draw_clear_alpha(make_color_rgb(5, 6, 10), 1);
 
 var cx = VIEW_W * 0.5;
@@ -151,6 +153,64 @@ if (winningNumber != -1) {
 }
 
 draw_text_ext(statusX, statusY + 174, lastSpinSummary, 280, 18);
+
+// Build a player list snapshot for the panel.
+// In local mode we show just you, and in broker mode we use server-provided player structs.
+var roster = activePlayers;
+if (!is_array(roster)) roster = [];
+if (!brokerMode) {
+	roster = [{
+		playerId: brokerPlayerId,
+		name: playerName,
+		bankroll: bankroll,
+		wager: rouletteGetTotalBet(betAreas),
+		signedIn: variable_global_exists("sgcSignedIn") ? global.sgcSignedIn : false
+	}];
+}
+
+var rosterPanelX = panelX;
+var rosterPanelY = panelY + 288;
+var rosterPanelW = 432;
+var rosterPanelH = 220;
+draw_set_color(panelColor);
+draw_rectangle(rosterPanelX, rosterPanelY, rosterPanelX + rosterPanelW, rosterPanelY + rosterPanelH, false);
+draw_set_color(lineColor);
+draw_rectangle(rosterPanelX, rosterPanelY, rosterPanelX + rosterPanelW, rosterPanelY + rosterPanelH, true);
+draw_set_halign(fa_left);
+draw_set_valign(fa_top);
+draw_set_color(c_white);
+draw_text(rosterPanelX + 10, rosterPanelY + 10, "ACTIVE PLAYERS");
+draw_set_color(lineColor);
+draw_text(rosterPanelX + 10, rosterPanelY + 30, "Name");
+draw_text(rosterPanelX + 188, rosterPanelY + 30, "Bankroll");
+draw_text(rosterPanelX + 296, rosterPanelY + 30, "Wager");
+draw_text(rosterPanelX + 380, rosterPanelY + 30, "State");
+
+if (array_length(roster) == 0) {
+	draw_set_color(make_color_rgb(180, 187, 200));
+	draw_text(rosterPanelX + 10, rosterPanelY + 56, "No active players in this lobby.");
+} else {
+	var rosterMaxRows = 7;
+	for (var rosterIndex = 0; rosterIndex < min(array_length(roster), rosterMaxRows); rosterIndex += 1) {
+		var row = roster[rosterIndex];
+		var rowTop = rosterPanelY + 54 + (rosterIndex * 22);
+		var rowName = rouletteStructGet(row, "name", "Player");
+		var rowBankroll = rouletteStructGet(row, "bankroll", 0);
+		var rowWager = rouletteStructGet(row, "wager", 0);
+		var rowSignedIn = rouletteStructGet(row, "signedIn", false);
+		var rowId = rouletteStructGet(row, "playerId", "");
+		var isSelf = (rowId != "" && rowId == brokerPlayerId);
+		draw_set_color(isSelf ? merge_color(lineColor, c_white, 0.15) : make_color_rgb(180, 187, 200));
+		draw_text(rosterPanelX + 10, rowTop, (isSelf ? "> " : "") + string_copy(rowName, 1, 18));
+		draw_text(rosterPanelX + 188, rowTop, "$" + string(rowBankroll));
+		draw_text(rosterPanelX + 296, rowTop, "$" + string(rowWager));
+		draw_text(rosterPanelX + 380, rowTop, rowSignedIn ? "SGC" : "Guest");
+	}
+	if (array_length(roster) > rosterMaxRows) {
+		draw_set_color(make_color_rgb(180, 187, 200));
+		draw_text(rosterPanelX + 10, rosterPanelY + rosterPanelH - 24, "+" + string(array_length(roster) - rosterMaxRows) + " more...");
+	}
+}
 
 if (brokerMode && lobbyBrowserOpen) {
 	draw_set_alpha(0.76);

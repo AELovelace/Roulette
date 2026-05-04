@@ -1,3 +1,5 @@
+// Wheel network event handler.
+// Micro-adjust here: broker reconnect UX, sync payload handling, and local persistence writes on signed-in updates.
 var eventType = async_load[? "type"];
 
 switch (eventType) {
@@ -32,6 +34,7 @@ switch (eventType) {
 			brokerPhase = "local";
 			brokerStatus = "Disconnected";
 			brokerPlayerCount = 1;
+			activePlayers = [];
 		}
 	break;
 
@@ -82,6 +85,7 @@ switch (eventType) {
 				if (messageKind == "state") {
 					brokerPhase = rouletteStructGet(message, "phase", brokerPhase);
 					brokerPlayerCount = rouletteStructGet(message, "playerCount", brokerPlayerCount);
+					activePlayers = rouletteStructGet(message, "activePlayers", activePlayers);
 					currentLobbyId = rouletteStructGet(message, "currentLobbyId", currentLobbyId);
 					currentLobbyName = rouletteStructGet(message, "currentLobbyName", currentLobbyName);
 					lobbyList = rouletteStructGet(message, "lobbies", []);

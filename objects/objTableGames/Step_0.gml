@@ -1,3 +1,5 @@
+// Shared table-games step loop.
+// Micro-adjust here: per-game control flow, lobby join/leave behavior, and host/turn action gating.
 viewResize();
 var mouseXPos = device_mouse_x_to_gui(0);
 var mouseYPos = device_mouse_y_to_gui(0);

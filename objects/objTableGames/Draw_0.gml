@@ -1,3 +1,5 @@
+// Shared table-games renderer.
+// Micro-adjust here: button/chip/card visual hierarchy and per-game panel density.
 function drawTableButton(_button, _selected, _hovered) {
 	var fill = _selected ? accentColor : buttonColor;
 	if (_hovered) {
@@ -225,7 +227,7 @@ function drawLocalGameLobby() {
 			drawTableButton(joinTableButton, true, hoveredControl == "join_table");
 		}
 	} else if (selectedGame == GAME_SLOTS || selectedGame == GAME_PACHINKO) {
-		draw_text(VIEW_W * 0.5, 386, "Up to 3 players share this lobby; every board stays visible while play resolves.");
+		draw_text(VIEW_W * 0.5, 386, "Up to 3 players.");
 		for (var seatIndex = 0; seatIndex < 3; seatIndex += 1) {
 			var seatLeft = VIEW_W * 0.5 - 306 + seatIndex * 204;
 			var seatTop = 426;
@@ -242,7 +244,7 @@ function drawLocalGameLobby() {
 			draw_text(seatLeft + 92, seatTop + 24, seatName);
 		}
 	} else {
-		draw_text(VIEW_W * 0.5, 394, "Enter when you are ready to sit at this table.");
+		draw_text(VIEW_W * 0.5, 394, "Enter when you are ready to Play.");
 	}
 	if (!tableMultiplayerEnabled) {
 		var joinTableButton = { x: VIEW_W * 0.5 - 135, y: 508, w: 270, h: 60, label: "Join Table" };
@@ -308,7 +310,7 @@ function drawSlotsGame() {
 	draw_set_halign(fa_left);
 	draw_set_valign(fa_top);
 	draw_set_color(mutedTextColor);
-	draw_text(74, 542, "Every occupied seat has an independent reel state; remote seats keep animating while you play.");
+	draw_text(74, 542, "Real-Time Multiplayer Slots");
 	draw_text(74, 566, "Rows and diagonals pay. Bell completes a pair as wild.");
 }
 
@@ -347,22 +349,50 @@ function drawPachinkoGame() {
 		var gapY = 20;
 		for (var rowIndex = 0; rowIndex < pachinkoRows; rowIndex += 1) {
 			for (var colIndex = 0; colIndex < pachinkoWidth; colIndex += 1) {
-				var pegLeft = boardLeft + colIndex * gapX + ((rowIndex mod 2) * gapX * 0.5);
+				var pegLeft = boardLeft + colIndex * gapX;
 				var pegTop = boardTop + rowIndex * gapY;
 				draw_set_color(make_color_rgb(93, 228, 207));
 				draw_circle(pegLeft, pegTop, 3, false);
 			}
 		}
 		if (array_length(seat.path) > 0) {
-			for (var visibleRow = 0; visibleRow < seat.visibleRows; visibleRow += 1) {
-				var pathPos = seat.path[visibleRow];
-				var ballLeft = boardLeft + pathPos * gapX + ((visibleRow mod 2) * gapX * 0.5);
-				var ballTop = boardTop + visibleRow * gapY;
-				draw_set_color(accentHoverColor);
-				draw_circle(ballLeft, ballTop, 8, false);
-				draw_set_color(c_white);
-				draw_circle(ballLeft - 3, ballTop - 3, 2, false);
+			var stepFrames = 10;
+			draw_set_alpha(0.95);
+			draw_set_color(make_color_rgb(128, 255, 0));
+			for (var lineRow = 1; lineRow < seat.visibleRows; lineRow += 1) {
+				var prevPos = seat.path[lineRow - 1];
+				var nextPos = seat.path[lineRow];
+				var lineX1 = boardLeft + prevPos * gapX;
+				var lineY1 = boardTop + (lineRow - 1) * gapY;
+				var lineX2 = boardLeft + nextPos * gapX;
+				var lineY2 = boardTop + lineRow * gapY;
+				draw_line_width(lineX1, lineY1, lineX2, lineY2, 2);
 			}
+
+			var currentRow = clamp(seat.visibleRows - 1, 0, array_length(seat.path) - 1);
+			var currentPos = seat.path[currentRow];
+			var currentX = boardLeft + currentPos * gapX;
+			var currentY = boardTop + currentRow * gapY;
+			var ballRadius = 8;
+			if (seat.running && currentRow < array_length(seat.path) - 1) {
+				var nextPosStep = seat.path[currentRow + 1];
+				var nextX = boardLeft + nextPosStep * gapX;
+				var nextY = boardTop + (currentRow + 1) * gapY;
+				var t = clamp(seat.timer / stepFrames, 0, 1);
+				currentX = lerp(currentX, nextX, t);
+				currentY = lerp(currentY, nextY, t) - (sin(t * pi) * 6);
+				draw_set_color(make_color_rgb(128, 255, 0));
+				draw_line_width(boardLeft + currentPos * gapX, boardTop + currentRow * gapY, currentX, currentY, 2);
+				if (t < 0.12 || t > 0.88) {
+					ballRadius = 7;
+				}
+			}
+			draw_set_alpha(1);
+
+			draw_set_color(accentHoverColor);
+			draw_circle(currentX, currentY, ballRadius, false);
+			draw_set_color(c_white);
+			draw_circle(currentX - 3, currentY - 3, 2, false);
 		}
 		for (var footer = 0; footer < pachinkoWidth; footer += 1) {
 			var labelLeft = boardLeft + footer * gapX;

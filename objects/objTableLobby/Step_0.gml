@@ -1,3 +1,5 @@
+// Table lobby interaction loop.
+// Micro-adjust here: navigation model (keyboard vs mouse), selection movement, and room transitions.
 var mouseXPos = device_mouse_x_to_gui(0);
 var mouseYPos = device_mouse_y_to_gui(0);
 hoveredButton = "";

@@ -1,3 +1,5 @@
+// Table lobby setup.
+// Micro-adjust here: table metadata, card sizing grid, and default copy for the selection screen.
 backgroundTop = make_color_rgb(5, 6, 10);
 backgroundBottom = make_color_rgb(34, 15, 38);
 panelColor = make_color_rgb(16, 15, 25);

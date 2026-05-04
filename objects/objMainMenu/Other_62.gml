@@ -1,3 +1,5 @@
+// Async HTTP handler for OAuth status polling.
+// Micro-adjust here: retry behavior, status messaging, and when sign-in state is committed to disk.
 var asyncId = async_load[? "id"];
 if (asyncId != oauthPollRequestId) {
 	exit;

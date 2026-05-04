@@ -300,6 +300,56 @@ function oauthErrorDetail(error) {
   return top;
 }
 
+async function revokeSgcLinkByExternalId(externalId) {
+  const externalKey = String(externalId || "").trim();
+  if (!externalKey) {
+    throw new Error("external_id is required for revoke");
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(`${SGC_BASE_URL}/v1/links/${encodeURIComponent(externalKey)}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${SGC_API_KEY}`,
+        Accept: "application/json",
+      },
+      signal: controller.signal,
+    });
+
+    const bodyText = await response.text();
+    let parsed = null;
+    if (bodyText) {
+      try {
+        parsed = JSON.parse(bodyText);
+      } catch (error) {
+        parsed = null;
+      }
+    }
+
+    if (response.status === 404) {
+      return { revoked: false, notFound: true, body: parsed };
+    }
+
+    if (!response.ok) {
+      const message = parsed?.error?.message || `Link revoke failed (${response.status}).`;
+      const error = new Error(message);
+      error.status = response.status;
+      error.body = parsed;
+      throw error;
+    }
+
+    return {
+      revoked: parsed?.revoked === true,
+      notFound: false,
+      body: parsed,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function logSignedInPayload(player, signedIn, externalId, displayName, source) {
   console.log(
     `[sgc][to-gm][${source}] player=${player.id} signedIn=${signedIn} externalId=${externalId || "-"} displayName=${displayName || "-"}`
@@ -1508,6 +1558,37 @@ function assignPlayerToLobby(player, lobby) {
   lobby.playerIds.add(player.id);
 }
 
+function buildActivePlayers(lobby) {
+  if (!lobby) {
+    return [];
+  }
+
+  const active = [];
+  for (const playerId of lobby.playerIds.values()) {
+    const participant = state.players.get(playerId);
+    if (!participant) {
+      continue;
+    }
+
+    active.push({
+      playerId: participant.id,
+      name: participant.name,
+      bankroll: participant.bankroll,
+      wager: playerBetTotal(participant),
+      signedIn: !!participant.sgcSignedIn,
+    });
+  }
+
+  active.sort((left, right) => {
+    if (right.wager !== left.wager) {
+      return right.wager - left.wager;
+    }
+    return left.name.localeCompare(right.name);
+  });
+
+  return active;
+}
+
 function buildSnapshot(forPlayer) {
   const lobby = getLobbyForPlayer(forPlayer);
   const yourBets = { ...forPlayer.bets };
@@ -1527,6 +1608,7 @@ function buildSnapshot(forPlayer) {
     spinPlan: lobby ? lobby.currentSpinPlan : null,
     currentLobbyId: lobby ? lobby.id : "",
     currentLobbyName: lobby ? lobby.name : "No lobby",
+    activePlayers: buildActivePlayers(lobby),
     lobbies: buildLobbyList(),
   };
 }
@@ -1824,157 +1906,163 @@ const httpServer = http.createServer((req, res) => {
       code_verifier: pending.verifier,
     };
 
-    fetch(`${SGC_BASE_URL}/oauth/token`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${SGC_API_KEY}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(tokenPayload),
-    })
-      .then(async (tokenRes) => {
-        const bodyText = await tokenRes.text();
-        let parsed = null;
-        if (bodyText) {
-          try {
-            parsed = JSON.parse(bodyText);
-          } catch (error) {
-            parsed = null;
-          }
+    const exchangeOauthToken = async (allowAutoRelink) => {
+      const tokenRes = await fetch(`${SGC_BASE_URL}/oauth/token`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SGC_API_KEY}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(tokenPayload),
+      });
+
+      const bodyText = await tokenRes.text();
+      let parsed = null;
+      if (bodyText) {
+        try {
+          parsed = JSON.parse(bodyText);
+        } catch (error) {
+          parsed = null;
         }
+      }
 
-        if (!tokenRes.ok) {
-          console.error(`[sgc][oauth] token exchange failed (${tokenRes.status}):`, JSON.stringify(parsed, null, 2));
-          const errCode = parsed?.error?.code || parsed?.code || "";
-          if (errCode === "discord_already_linked_to_different_external_id") {
-            const existingExtId =
-              parsed?.existing_external_id ||
-              parsed?.error?.existing_external_id ||
-              parsed?.conflicting_external_id ||
-              parsed?.error?.conflicting_external_id ||
-              null;
-            const discordIdFromError =
-              String(parsed?.discord_id || parsed?.user?.discord_id || parsed?.error?.discord_id || "").trim() || null;
-            if (existingExtId) {
-              const resumedExternalId = String(existingExtId).trim().slice(0, 64);
-              const resumedName = resolveDisplayNameFromOauthPayload(parsed, pending.externalName);
+      if (!tokenRes.ok) {
+        console.error(`[sgc][oauth] token exchange failed (${tokenRes.status}):`, JSON.stringify(parsed, null, 2));
+        const errCode = parsed?.error?.code || parsed?.code || "";
+        if (allowAutoRelink && errCode === "discord_already_linked_to_different_external_id") {
+          const discordIdFromError =
+            String(parsed?.discord_id || parsed?.user?.discord_id || parsed?.error?.discord_id || "").trim() || "";
+          const localIdentity = discordIdFromError ? identityStore.getByDiscordId(discordIdFromError) : null;
+          const conflictingExternalId = String(
+            parsed?.existing_external_id ||
+            parsed?.error?.existing_external_id ||
+            parsed?.conflicting_external_id ||
+            parsed?.error?.conflicting_external_id ||
+            localIdentity?.appId ||
+            ""
+          ).trim().slice(0, 64);
+
+          if (conflictingExternalId) {
+            console.log(
+              `[sgc][oauth] duplicate sign-in detected; revoking existing external_id ${conflictingExternalId} before retrying pending external_id ${pending.externalId}`
+            );
+            try {
+              const revokeResult = await revokeSgcLinkByExternalId(conflictingExternalId);
               console.log(
-                `[sgc][oauth] conflict resolved by resuming existing external_id ${resumedExternalId} for session ${pending.oauthSessionId}`
+                `[sgc][oauth] revoke result for ${conflictingExternalId}: revoked=${revokeResult.revoked ? "yes" : "no"} not_found=${revokeResult.notFound ? "yes" : "no"}`
               );
-
-              try {
-                identityStore.ensureAppId(resumedExternalId, resumedName);
-                if (discordIdFromError) {
-                  identityStore.bindDiscordId(discordIdFromError, resumedExternalId, resumedName);
-                }
-              } catch (error) {
-                console.error(`[sgc][oauth] resume bind failed: ${oauthErrorDetail(error)}`);
-              }
-
-              markOauthLinked(pending.oauthSessionId, resumedExternalId, resumedName);
-              writeHtml(
-                res,
-                200,
-                "Discord OAuth complete",
-                `<p>Your Discord account is already linked, so we resumed your existing Roulette identity automatically.</p><p>Your immutable Roulette ID is <code>${htmlEscape(resumedExternalId)}</code>.</p><p>This window can close now. The original game tab will pick up the auth state automatically.</p>`,
-                buildOauthReturnScript(pending.returnTo)
-              );
-            } else {
+            } catch (error) {
+              const detail = oauthErrorDetail(error);
+              console.error(`[sgc][oauth] revoke failed for ${conflictingExternalId}: ${detail}`);
               oauthFailedBySessionId.set(pending.oauthSessionId, {
                 failedAt: Date.now(),
-                code: "discord_already_linked",
-                message: "Discord already linked to a different identity. Run /lumi-link revoke app:roulette in Discord, then sign in again.",
+                code: "discord_revoke_failed",
+                message: `Automatic unlink failed for ${conflictingExternalId}: ${detail}`,
               });
               writeHtml(
                 res,
-                409,
-                "Discord account conflict",
-                `<p>Your Discord account is already linked to a different game identity on Sadgirlcoin.</p><p>To fix this, run <code>/lumi-link revoke app:roulette</code> in Discord, then try signing in again.</p>`,
-                buildOauthReturnScript(pending.returnTo)
+                502,
+                "Automatic unlink failed",
+                `<p>We detected an existing Sadgirlcoin link for this Discord account, but the broker could not revoke it automatically.</p><p>${htmlEscape(detail)}</p>`
               );
+              return;
             }
+
+            await exchangeOauthToken(false);
             return;
           }
-          const message = htmlEscape(parsed?.error?.message || `Token exchange failed (${tokenRes.status}).`);
-          writeHtml(res, 502, "OAuth sign-in failed", `<p>${message}</p>`);
-          return;
-        }
 
-        // Always log the full token response when OAuth completes
-        console.log("[sgc][oauth] FULL TOKEN RESPONSE:", JSON.stringify(parsed, null, 2));
-        console.log("[sgc][oauth] token payload keys:", Object.keys(parsed || {}));
-        console.log("[sgc][oauth] token name candidates:", {
-          discord_username: parsed?.discord_username,
-          user_discord_username: parsed?.user?.discord_username,
-          discord_name: parsed?.discord_name,
-          user_discord_name: parsed?.user?.discord_name,
-          user_discord_id: parsed?.user?.discord_id,
-          user_discord_username: parsed?.user?.discord_username,
-          user_display_name: parsed?.user?.display_name,
-          user_global_name: parsed?.user?.global_name,
-          user_username: parsed?.user?.username,
-          discord_user_display_name: parsed?.discord_user?.display_name,
-          discord_user_global_name: parsed?.discord_user?.global_name,
-          discord_user_username: parsed?.discord_user?.username,
-          account_display_name: parsed?.account?.display_name,
-          account_username: parsed?.account?.username,
-          profile_display_name: parsed?.profile?.display_name,
-          profile_username: parsed?.profile?.username,
-          display_name: parsed?.display_name,
-          username: parsed?.username,
-          external_name: parsed?.external_name,
-          link_discord_name: parsed?.link?.discord_name,
-        });
-
-        const discordId = String(parsed?.discord_id || parsed?.user?.discord_id || "").trim();
-        if (!discordId) {
-          writeHtml(
-            res,
-            502,
-            "OAuth sign-in failed",
-            "<p>Sadgirlcoin OAuth did not return a Discord account identifier.</p>"
-          );
-          return;
-        }
-
-        var resolvedName = resolveDisplayNameFromOauthPayload(parsed, pending.externalName);
-        if (!resolvedName) {
-          console.warn(
-            "[sgc][oauth] missing Discord username in token response; keeping existing in-game name. Check that the app record and grant both include identity:read."
-          );
-        }
-        let linkedExternalId = pending.externalId;
-        const existingIdentity = identityStore.getByDiscordId(discordId);
-        if (existingIdentity?.appId && existingIdentity.appId !== pending.externalId) {
-          linkedExternalId = existingIdentity.appId;
-          console.log(
-            `[sgc][oauth] reusing existing Roulette identity ${linkedExternalId} for discord_id ${discordId}; pending session requested ${pending.externalId}`
-          );
-        }
-
-        try {
-          identityStore.bindDiscordId(discordId, linkedExternalId, resolvedName);
-        } catch (error) {
-          console.error(`[sgc][oauth] identity bind failed: ${oauthErrorDetail(error)}`);
+          oauthFailedBySessionId.set(pending.oauthSessionId, {
+            failedAt: Date.now(),
+            code: "discord_already_linked",
+            message: "Discord already linked to a different identity, but the conflicting external_id was not returned by the API.",
+          });
           writeHtml(
             res,
             409,
-            "OAuth sign-in conflict",
-            "<p>This Discord account is already attached to a different Roulette identity and could not be resumed automatically.</p>"
+            "Discord account conflict",
+            "<p>Your Discord account is already linked to a different game identity on Sadgirlcoin, and the conflicting link ID was not returned so the broker could not auto-repair it.</p>"
           );
           return;
         }
-        console.log(`[sgc][oauth] resolved display name: ${resolvedName || "(unchanged)"}`);
-        markOauthLinked(pending.oauthSessionId, linkedExternalId, resolvedName);
+
+        const message = htmlEscape(parsed?.error?.message || `Token exchange failed (${tokenRes.status}).`);
+        writeHtml(res, 502, "OAuth sign-in failed", `<p>${message}</p>`);
+        return;
+      }
+
+      // Always log the full token response when OAuth completes
+      console.log("[sgc][oauth] FULL TOKEN RESPONSE:", JSON.stringify(parsed, null, 2));
+      console.log("[sgc][oauth] token payload keys:", Object.keys(parsed || {}));
+      console.log("[sgc][oauth] token name candidates:", {
+        discord_username: parsed?.discord_username,
+        user_discord_username: parsed?.user?.discord_username,
+        discord_name: parsed?.discord_name,
+        user_discord_name: parsed?.user?.discord_name,
+        user_discord_id: parsed?.user?.discord_id,
+        user_discord_username: parsed?.user?.discord_username,
+        user_display_name: parsed?.user?.display_name,
+        user_global_name: parsed?.user?.global_name,
+        user_username: parsed?.user?.username,
+        discord_user_display_name: parsed?.discord_user?.display_name,
+        discord_user_global_name: parsed?.discord_user?.global_name,
+        discord_user_username: parsed?.discord_user?.username,
+        account_display_name: parsed?.account?.display_name,
+        account_username: parsed?.account?.username,
+        profile_display_name: parsed?.profile?.display_name,
+        profile_username: parsed?.profile?.username,
+        display_name: parsed?.display_name,
+        username: parsed?.username,
+        external_name: parsed?.external_name,
+        link_discord_name: parsed?.link?.discord_name,
+      });
+
+      const discordId = String(parsed?.discord_id || parsed?.user?.discord_id || "").trim();
+      if (!discordId) {
         writeHtml(
           res,
-          200,
-          "Discord OAuth complete",
-          `<p>Your Sadgirlcoin account is now linked${resolvedName ? ` for <code>${htmlEscape(resolvedName)}</code>` : ""}.</p><p>Your immutable Roulette ID is <code>${htmlEscape(linkedExternalId)}</code>.</p><p>This window can close now. The original game tab will pick up the auth state automatically.</p>${resolvedName ? "" : "<p><strong>Note:</strong> The OAuth grant did not return Discord identity fields. Enable <code>identity:read</code> on the app and re-authorize to use your Discord username in-game.</p>"}${pending.returnTo ? `<p>If this window does not close on its own, close it and return to your original game tab.</p>` : ""}`,
-          buildOauthReturnScript(pending.returnTo)
+          502,
+          "OAuth sign-in failed",
+          "<p>Sadgirlcoin OAuth did not return a Discord account identifier.</p>"
         );
-      })
+        return;
+      }
+
+      var resolvedName = resolveDisplayNameFromOauthPayload(parsed, pending.externalName);
+      if (!resolvedName) {
+        console.warn(
+          "[sgc][oauth] missing Discord username in token response; keeping existing in-game name. Check that the app record and grant both include identity:read."
+        );
+      }
+
+      const linkedExternalId = pending.externalId;
+      try {
+        identityStore.bindDiscordId(discordId, linkedExternalId, resolvedName, { forceRebind: true });
+      } catch (error) {
+        console.error(`[sgc][oauth] identity bind failed: ${oauthErrorDetail(error)}`);
+        writeHtml(
+          res,
+          409,
+          "OAuth sign-in conflict",
+          "<p>This Discord account could not be rebound to the new Roulette identity after OAuth completed.</p>"
+        );
+        return;
+      }
+
+      oauthFailedBySessionId.delete(pending.oauthSessionId);
+      console.log(`[sgc][oauth] resolved display name: ${resolvedName || "(unchanged)"}`);
+      markOauthLinked(pending.oauthSessionId, linkedExternalId, resolvedName);
+      writeHtml(
+        res,
+        200,
+        "Discord OAuth complete",
+        `<p>Your Sadgirlcoin account is now linked${resolvedName ? ` for <code>${htmlEscape(resolvedName)}</code>` : ""}.</p><p>Your immutable Roulette ID is <code>${htmlEscape(linkedExternalId)}</code>.</p><p>This window can close now. The original game tab will pick up the auth state automatically.</p>${resolvedName ? "" : "<p><strong>Note:</strong> The OAuth grant did not return Discord identity fields. Enable <code>identity:read</code> on the app and re-authorize to use your Discord username in-game.</p>"}${pending.returnTo ? `<p>If this window does not close on its own, close it and return to your original game tab.</p>` : ""}`,
+        buildOauthReturnScript(pending.returnTo)
+      );
+    };
+
+    exchangeOauthToken(true)
       .catch((error) => {
         const detail = oauthErrorDetail(error);
         console.error(`[oauth] token fetch error to ${SGC_BASE_URL}/oauth/token: ${detail}`);

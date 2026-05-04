@@ -1,3 +1,5 @@
+// Resolution controller bootstrap.
+// Micro-adjust here: baseline width/height defaults used as global layout expectations.
 base_width = 640;
 base_height = 360;
 

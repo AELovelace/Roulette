@@ -1,3 +1,5 @@
+// Table lobby renderer.
+// Micro-adjust here: card affordance, top-bar messaging, and input hint prominence.
 function drawLobbyButton(_button, _selected, _hovered) {
 	var fill = _selected ? accentColor : buttonColor;
 	if (_hovered) fill = _selected ? accentHoverColor : buttonHoverColor;
