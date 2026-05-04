@@ -172,3 +172,181 @@ function rouletteApplyBetState(_betAreas, _yourBets, _tableTotals){
 		area.totalAmount = rouletteStructGet(_tableTotals, area.key, 0);
 	}
 }
+
+function breakoutHideBoard() {
+	with (objBrick) { instance_destroy(); }
+	with (objBall) { instance_destroy(); }
+	with (objBallExtra) { instance_destroy(); }
+	with (objPowerUp) { instance_destroy(); }
+}
+
+function breakoutResetBallStack() {
+	with (objBall) { instance_destroy(); }
+	with (objBallExtra) { instance_destroy(); }
+	with (objPowerUp) { instance_destroy(); }
+	instance_create_layer(room_width * 0.5, room_height - 64, "Instances", objBall);
+}
+
+function breakoutBuildRandomField(_gridCols, _gridRows, _gridCell, _gridStartX, _gridStartY) {
+	function _markCell(_grid, _col, _row, _cols, _rows) {
+		if (_col < 0 || _col >= _cols) return;
+		if (_row < 0 || _row >= _rows) return;
+		_grid[_row][_col] = true;
+	}
+
+	function _stampPattern(_grid, _cells, _baseCol, _baseRow, _cols, _rows) {
+		for (var i = 0; i < array_length(_cells); i++) {
+			var cell = _cells[i];
+			_markCell(_grid, _baseCol + cell[0], _baseRow + cell[1], _cols, _rows);
+		}
+	}
+
+	function _countCells(_grid, _cols, _rows) {
+		var total = 0;
+		for (var r = 0; r < _rows; r++) {
+			for (var c = 0; c < _cols; c++) {
+				if (_grid[r][c]) total += 1;
+			}
+		}
+		return total;
+	}
+
+	var heart = [
+		[1, 0], [2, 0], [4, 0], [5, 0],
+		[0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1],
+		[1, 2], [2, 2], [3, 2], [4, 2], [5, 2],
+		[2, 3], [3, 3], [4, 3],
+		[3, 4]
+	];
+	var star = [
+		[3, 0],
+		[2, 1], [3, 1], [4, 1],
+		[0, 2], [1, 2], [2, 2], [3, 2], [4, 2], [5, 2], [6, 2],
+		[1, 3], [2, 3], [3, 3], [4, 3], [5, 3],
+		[2, 4], [4, 4],
+		[2, 5], [4, 5]
+	];
+	var box = [
+		[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0],
+		[0, 1], [5, 1],
+		[0, 2], [5, 2],
+		[0, 3], [5, 3],
+		[0, 4], [1, 4], [2, 4], [3, 4], [4, 4], [5, 4]
+	];
+	var rectangle = [
+		[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [7, 0],
+		[0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1],
+		[0, 2], [1, 2], [2, 2], [3, 2], [4, 2], [5, 2], [6, 2], [7, 2]
+	];
+
+	var grid = array_create(_gridRows);
+	for (var r = 0; r < _gridRows; r++) grid[r] = array_create(_gridCols, false);
+
+	var shapeCount = irandom_range(2, 3);
+	for (var s = 0; s < shapeCount; s++) {
+		var roll = irandom(15);
+		var pattern = rectangle;
+		var patternW = 8;
+		var patternH = 3;
+		if (roll <= 4) {
+			pattern = rectangle;
+			patternW = 8;
+			patternH = 3;
+		} else if (roll <= 8) {
+			pattern = box;
+			patternW = 6;
+			patternH = 5;
+		} else if (roll <= 11) {
+			pattern = heart;
+			patternW = 7;
+			patternH = 5;
+		} else {
+			pattern = star;
+			patternW = 7;
+			patternH = 6;
+		}
+		var baseCol = irandom_range(0, max(0, _gridCols - patternW));
+		var baseRow = irandom_range(0, max(0, _gridRows - patternH));
+		_stampPattern(grid, pattern, baseCol, baseRow, _gridCols, _gridRows);
+	}
+
+	while (_countCells(grid, _gridCols, _gridRows) < 30) {
+		var fillW = irandom_range(3, 6);
+		var fillH = irandom_range(1, 2);
+		var fillCol = irandom_range(0, max(0, _gridCols - fillW));
+		var fillRow = irandom_range(0, max(0, _gridRows - fillH));
+		for (var fy = 0; fy < fillH; fy++) {
+			for (var fx = 0; fx < fillW; fx++) {
+				_markCell(grid, fillCol + fx, fillRow + fy, _gridCols, _gridRows);
+			}
+		}
+	}
+
+	with (objBrick) { instance_destroy(); }
+	for (var row = 0; row < _gridRows; row++) {
+		for (var col = 0; col < _gridCols; col++) {
+			if (grid[row][col]) {
+				instance_create_layer(_gridStartX + col * _gridCell, _gridStartY + row * _gridCell, "Instances", objBrick);
+			}
+		}
+	}
+}
+
+function breakoutDistance(_ctrl) {
+	return (max(1, _ctrl.level) - 1) * 100 + max(0, global.BOPScore);
+}
+
+function breakoutBeginRun(_ctrl) {
+	global.BOPScore = 0;
+	global.BOPLives = 3;
+	_ctrl.level = 1;
+	_ctrl.payoutSettled = false;
+	_ctrl.lastRunPayout = 0;
+	_ctrl.runNet = -_ctrl.entryCost;
+	_ctrl.localRaceSubmitted = false;
+	if (_ctrl.mode == "showdown") {
+		_ctrl.gridRows = _ctrl.showdownGridRows;
+		_ctrl.gridStartY = _ctrl.showdownGridStartY;
+	} else {
+		_ctrl.gridRows = _ctrl.defaultGridRows;
+		_ctrl.gridStartY = _ctrl.defaultGridStartY;
+	}
+	breakoutBuildRandomField(_ctrl.gridCols, _ctrl.gridRows, _ctrl.gridCell, _ctrl.gridStartX, _ctrl.gridStartY);
+	breakoutResetBallStack();
+	_ctrl.state = "PLAYING";
+	_ctrl.statusText = _ctrl.mode == "showdown" ? "Showdown race live." : "[SGC] Run started.";
+}
+
+function breakoutAdvanceLevel(_ctrl) {
+	_ctrl.level += 1;
+	_ctrl.statusText = "[LEVEL] Cleared. Generating level " + string(_ctrl.level) + ".";
+	breakoutBuildRandomField(_ctrl.gridCols, _ctrl.gridRows, _ctrl.gridCell, _ctrl.gridStartX, _ctrl.gridStartY);
+	breakoutResetBallStack();
+}
+
+function breakoutRequestSoloStart(_ctrl) {
+	_ctrl.mode = "solo";
+	if (_ctrl.breakoutBrokerConnected) {
+		_ctrl.soloStartPending = true;
+		_ctrl.statusText = "[SGC] Requesting 25-coin deposit...";
+		rouletteSendJson(_ctrl.breakoutBrokerSocket, { type: "breakout_single_start" });
+	} else {
+		if (global.sgcArcadeBalance < _ctrl.entryCost) {
+			_ctrl.statusText = "[SGC] Need " + string(_ctrl.entryCost) + " coins to start.";
+			return;
+		}
+		global.sgcArcadeBalance -= _ctrl.entryCost;
+		_ctrl.runCharged = true;
+		breakoutBeginRun(_ctrl);
+	}
+}
+
+function breakoutRequestShowdownWatch(_ctrl) {
+	_ctrl.mode = "showdown";
+	_ctrl.state = "SHOWDOWN_LOBBY";
+	_ctrl.statusText = "Joining Breakout showdown...";
+	breakoutHideBoard();
+	if (_ctrl.breakoutBrokerConnected) {
+		rouletteSendJson(_ctrl.breakoutBrokerSocket, { type: "table_watch", game: _ctrl.showdownGameKey });
+	}
+}

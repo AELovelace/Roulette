@@ -470,6 +470,144 @@ async function refreshPlayerBankrollFromSgc(player, reason = "sync") {
   }
 }
 
+async function sgcChargePlayer(player, amount, note, idempotencyKey) {
+  const wager = Math.max(0, Number(amount) || 0);
+  if (wager <= 0) {
+    return { ok: true, balance: player.bankroll, fee: 0, source: "noop" };
+  }
+
+  if (player.sgcSignedIn && player.sgcExternalId && hasSgcApiConfig()) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 7000);
+    try {
+      const response = await fetch(`${SGC_BASE_URL}/v1/charge`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SGC_API_KEY}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
+        body: JSON.stringify({
+          external_id: player.sgcExternalId,
+          amount: wager,
+          note,
+          idempotency_key: idempotencyKey,
+        }),
+        signal: controller.signal,
+      });
+      const text = await response.text();
+      let parsed = null;
+      if (text) {
+        try {
+          parsed = JSON.parse(text);
+        } catch (error) {
+          parsed = null;
+        }
+      }
+
+      if (!response.ok) {
+        return {
+          ok: false,
+          status: response.status,
+          code: parsed?.error?.code || "charge_failed",
+          message: parsed?.error?.message || `Charge failed (${response.status}).`,
+        };
+      }
+
+      const nextBalance = Number(parsed?.balance);
+      if (Number.isInteger(nextBalance)) player.bankroll = nextBalance;
+      return {
+        ok: true,
+        balance: player.bankroll,
+        fee: Number(parsed?.fee) || 0,
+        source: "sgc",
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        code: "charge_network_error",
+        message: oauthErrorDetail(error),
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  if (player.bankroll < wager) {
+    return { ok: false, code: "insufficient_balance", message: "Insufficient SGC balance." };
+  }
+  player.bankroll -= wager;
+  return { ok: true, balance: player.bankroll, fee: 0, source: "local" };
+}
+
+async function sgcCreditPlayer(player, amount, note, idempotencyKey) {
+  const payout = Math.max(0, Number(amount) || 0);
+  if (payout <= 0) {
+    return { ok: true, balance: player.bankroll, source: "noop" };
+  }
+
+  if (player.sgcSignedIn && player.sgcExternalId && hasSgcApiConfig()) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 7000);
+    try {
+      const response = await fetch(`${SGC_BASE_URL}/v1/credit`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SGC_API_KEY}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
+        body: JSON.stringify({
+          external_id: player.sgcExternalId,
+          amount: payout,
+          note,
+          idempotency_key: idempotencyKey,
+        }),
+        signal: controller.signal,
+      });
+      const text = await response.text();
+      let parsed = null;
+      if (text) {
+        try {
+          parsed = JSON.parse(text);
+        } catch (error) {
+          parsed = null;
+        }
+      }
+
+      if (!response.ok) {
+        return {
+          ok: false,
+          status: response.status,
+          code: parsed?.error?.code || "credit_failed",
+          message: parsed?.error?.message || `Credit failed (${response.status}).`,
+        };
+      }
+
+      const nextBalance = Number(parsed?.balance);
+      if (Number.isInteger(nextBalance)) player.bankroll = nextBalance;
+      return {
+        ok: true,
+        balance: player.bankroll,
+        source: "sgc",
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        code: "credit_network_error",
+        message: oauthErrorDetail(error),
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  player.bankroll += payout;
+  return { ok: true, balance: player.bankroll, source: "local" };
+}
+
 function getCompletedOauthSession(sessionId) {
   const key = String(sessionId || "").trim();
   if (!key) return false;
@@ -550,7 +688,7 @@ function markOauthLinked(sessionId, externalId, displayName) {
   }
 }
 
-const tableGames = new Set(["slots", "pachinko", "blackjack", "holdem", "horse"]);
+const tableGames = new Set(["slots", "pachinko", "blackjack", "holdem", "horse", "breakout"]);
 const slotSymbolCount = 6;
 const slotPoints = [1, 2, 3, 5, 7, 10];
 const pachinkoWidth = 10;
@@ -737,6 +875,15 @@ function createEmptyTableSeat(player) {
     acted: false,
     horseChoice: 0,
     raceBet: 0,
+    role: "player",
+    breakout: {
+      score: 0,
+      level: 1,
+      lives: 3,
+      distance: 0,
+      finished: false,
+      acceptedRematch: null,
+    },
     timer: null,
   };
 }
@@ -763,7 +910,24 @@ function createTableLobby(game, name) {
     horseUnderdog: -1,
     horseWins: [0, 0, 0, 0],
     horseTimer: null,
+    breakout: {
+      state: "waiting",
+      player1Id: "",
+      player2Id: "",
+      winnerId: "",
+      loserId: "",
+      challengerPromptOpen: false,
+      allowBets: true,
+      scoreboard: {},
+      bets: {},
+      rematchVotes: {},
+      showdownSummary: "Waiting for two racers.",
+    },
   };
+
+  if (game !== "breakout") {
+    delete lobby.breakout;
+  }
   state.tableLobbies.set(lobby.id, lobby);
   return lobby;
 }
@@ -772,7 +936,130 @@ function tableMaxPlayers(game) {
   if (game === "slots" || game === "pachinko") return 3;
   if (game === "blackjack") return 6;
   if (game === "horse") return 20;
+  if (game === "breakout") return 7;
   return 8;
+}
+
+function breakoutScoreDistance(level, score) {
+  const safeLevel = Math.max(1, Number(level) || 1);
+  const safeScore = Math.max(0, Number(score) || 0);
+  return (safeLevel - 1) * 100 + safeScore;
+}
+
+function breakoutRoleCounts(lobby) {
+  const counts = { racer: 0, spectator: 0 };
+  for (const id of lobby.playerIds) {
+    const seat = lobby.seats.get(id);
+    if (!seat) continue;
+    if (seat.role === "racer") counts.racer += 1;
+    else counts.spectator += 1;
+  }
+  return counts;
+}
+
+function breakoutEnsureRoles(lobby) {
+  if (!lobby || lobby.game !== "breakout") return;
+  const breakout = lobby.breakout;
+  if (!breakout) return;
+
+  if (breakout.player1Id && !lobby.seats.has(breakout.player1Id)) breakout.player1Id = "";
+  if (breakout.player2Id && !lobby.seats.has(breakout.player2Id)) breakout.player2Id = "";
+
+  for (const id of lobby.playerIds) {
+    const seat = lobby.seats.get(id);
+    if (!seat) continue;
+    if (id === breakout.player1Id || id === breakout.player2Id) {
+      seat.role = "racer";
+    } else {
+      seat.role = "spectator";
+    }
+  }
+
+  if (!breakout.player1Id) {
+    const firstRacer = lobby.playerIds.find((id) => lobby.seats.get(id)?.role === "racer") || lobby.playerIds[0] || "";
+    breakout.player1Id = firstRacer;
+  }
+
+  if (!breakout.player2Id) {
+    const candidate = lobby.playerIds.find((id) => id !== breakout.player1Id && lobby.seats.has(id)) || "";
+    breakout.player2Id = candidate;
+  }
+
+  for (const id of lobby.playerIds) {
+    const seat = lobby.seats.get(id);
+    if (!seat) continue;
+    if (id === breakout.player1Id || id === breakout.player2Id) seat.role = "racer";
+    else seat.role = "spectator";
+  }
+}
+
+function breakoutRacerIds(lobby) {
+  if (!lobby || lobby.game !== "breakout") return [];
+  const ids = [];
+  if (lobby.breakout.player1Id && lobby.seats.has(lobby.breakout.player1Id)) ids.push(lobby.breakout.player1Id);
+  if (lobby.breakout.player2Id && lobby.seats.has(lobby.breakout.player2Id)) ids.push(lobby.breakout.player2Id);
+  return ids;
+}
+
+function breakoutResetRaceSeat(seat) {
+  seat.breakout.score = 0;
+  seat.breakout.level = 1;
+  seat.breakout.lives = 3;
+  seat.breakout.distance = 0;
+  seat.breakout.finished = false;
+  seat.breakout.acceptedRematch = null;
+  seat.status = "Ready";
+}
+
+function breakoutMoveWinnerToP1(lobby, winnerId) {
+  if (!lobby || lobby.game !== "breakout") return;
+  if (!winnerId) return;
+  if (!lobby.seats.has(winnerId)) return;
+  const breakout = lobby.breakout;
+  const previousP1 = breakout.player1Id;
+  breakout.player1Id = winnerId;
+  if (previousP1 && previousP1 !== winnerId && previousP1 !== breakout.player2Id && lobby.seats.has(previousP1)) {
+    lobby.seats.get(previousP1).role = "spectator";
+  }
+  if (breakout.player2Id === winnerId) {
+    breakout.player2Id = previousP1 && previousP1 !== winnerId ? previousP1 : "";
+  }
+  breakoutEnsureRoles(lobby);
+}
+
+function breakoutOpenChallengerPrompt(lobby, reasonText) {
+  if (!lobby || lobby.game !== "breakout") return;
+  const breakout = lobby.breakout;
+  const loserId = breakout.loserId;
+  if (loserId && lobby.seats.has(loserId)) {
+    const loserSeat = lobby.seats.get(loserId);
+    loserSeat.role = "spectator";
+    loserSeat.status = "Spectating";
+  }
+  breakout.player2Id = "";
+  breakout.challengerPromptOpen = true;
+  breakout.state = "waiting";
+  breakout.allowBets = true;
+  breakout.showdownSummary = reasonText || "Select next challenger.";
+  breakout.rematchVotes = {};
+  breakoutEnsureRoles(lobby);
+}
+
+function breakoutSnapshot(lobby) {
+  if (!lobby || lobby.game !== "breakout") return undefined;
+  const breakout = lobby.breakout;
+  return {
+    state: breakout.state,
+    player1Id: breakout.player1Id,
+    player2Id: breakout.player2Id,
+    winnerId: breakout.winnerId,
+    loserId: breakout.loserId,
+    challengerPromptOpen: breakout.challengerPromptOpen,
+    allowBets: breakout.allowBets,
+    showdownSummary: breakout.showdownSummary,
+    rematchVotes: breakout.rematchVotes,
+    scoreboard: breakout.scoreboard,
+  };
 }
 
 function getTableLobbyForPlayer(player) {
@@ -796,6 +1083,16 @@ function removePlayerFromTableLobby(player) {
 
   const seat = lobby.seats.get(player.id);
   clearTableSeatTimer(seat);
+
+  if (lobby.game === "breakout") {
+    const breakout = lobby.breakout;
+    if (breakout.player1Id === player.id) breakout.player1Id = "";
+    if (breakout.player2Id === player.id) breakout.player2Id = "";
+    delete breakout.rematchVotes[player.id];
+    delete breakout.scoreboard[player.id];
+    delete breakout.bets[player.id];
+  }
+
   lobby.seats.delete(player.id);
   lobby.playerIds = lobby.playerIds.filter((id) => id !== player.id);
   player.tableLobbyId = "";
@@ -819,6 +1116,8 @@ function removePlayerFromTableLobby(player) {
       lobby.horseTimer = null;
     }
     state.tableLobbies.delete(lobby.id);
+  } else if (lobby.game === "breakout") {
+    breakoutEnsureRoles(lobby);
   }
 }
 
@@ -830,6 +1129,25 @@ function assignPlayerToTableLobby(player, lobby) {
   player.tableLobbyId = lobby.id;
   lobby.playerIds.push(player.id);
   lobby.seats.set(player.id, createEmptyTableSeat(player));
+
+  if (lobby.game === "breakout") {
+    const breakout = lobby.breakout;
+    const seat = lobby.seats.get(player.id);
+    if (!breakout.player1Id) {
+      breakout.player1Id = player.id;
+      seat.role = "racer";
+      seat.status = "Player 1";
+    } else if (!breakout.player2Id) {
+      breakout.player2Id = player.id;
+      seat.role = "racer";
+      seat.status = "Player 2";
+    } else {
+      seat.role = "spectator";
+      seat.status = "Spectating";
+    }
+    breakoutEnsureRoles(lobby);
+  }
+
   if (!lobby.hostPlayerId) lobby.hostPlayerId = player.id;
   lobby.lastEvent = `${player.name} joined ${lobby.name}.`;
   return true;
@@ -1066,6 +1384,8 @@ function buildTableSeats(lobby) {
       acted: seat.acted,
       horseChoice: seat.horseChoice,
       raceBet: seat.raceBet,
+      role: seat.role,
+      breakout: seat.breakout,
     };
   });
   while (seats.length < tableMaxPlayers(lobby.game)) seats.push(null);
@@ -1097,6 +1417,8 @@ function buildTableParticipants(lobby, forPlayer) {
       total: lobby.game === "blackjack" && showHand ? blackjackValue(seat.hand) : 0,
       isHost: lobby.hostPlayerId === id,
       horseChoice: seat.horseChoice,
+      role: seat.role,
+      breakout: seat.breakout,
     };
   }).filter(Boolean);
 }
@@ -1130,6 +1452,7 @@ function buildTableSnapshot(forPlayer, game) {
     horseWinner: inRequestedGame && lobby.game === "horse" ? lobby.horseWinner : -1,
     horseUnderdog: inRequestedGame && lobby.game === "horse" ? lobby.horseUnderdog : -1,
     horseWins: inRequestedGame && lobby.game === "horse" ? lobby.horseWins : [0, 0, 0, 0],
+    breakout: inRequestedGame && lobby.game === "breakout" ? breakoutSnapshot(lobby) : undefined,
   };
 }
 
@@ -1550,6 +1873,330 @@ function startTableHorseRace(player) {
     broadcastTableGame("horse");
   }, 120);
   broadcastTableGame("horse");
+}
+
+async function startBreakoutShowdown(player) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "breakout") return;
+  const breakout = lobby.breakout;
+  breakoutEnsureRoles(lobby);
+  const racers = breakoutRacerIds(lobby);
+  if (racers.length < 2) {
+    lobby.lastEvent = "Breakout showdown needs two racers.";
+    breakout.showdownSummary = lobby.lastEvent;
+    broadcastTableGame("breakout");
+    return;
+  }
+  if (breakout.state === "racing") return;
+
+  const entryCost = 25;
+  for (const racerId of racers) {
+    const racer = state.players.get(racerId);
+    if (!racer) continue;
+    const chargeId = `bo-showdown-entry-${lobby.id}-${racerId}-${Date.now()}`;
+    const charge = await sgcChargePlayer(racer, entryCost, `Breakout showdown entry ${lobby.id}`, chargeId);
+    if (!charge.ok) {
+      lobby.lastEvent = `${racer.name} could not pay ${entryCost} SGC buy-in.`;
+      breakout.showdownSummary = lobby.lastEvent;
+      broadcastTableGame("breakout");
+      return;
+    }
+  }
+
+  breakout.state = "racing";
+  breakout.allowBets = false;
+  breakout.challengerPromptOpen = false;
+  breakout.winnerId = "";
+  breakout.loserId = "";
+  breakout.rematchVotes = {};
+  breakout.scoreboard = {};
+  breakout.showdownSummary = "Race live. First to survive farther wins.";
+
+  for (const id of racers) {
+    const seat = lobby.seats.get(id);
+    if (!seat) continue;
+    breakoutResetRaceSeat(seat);
+    seat.status = id === breakout.player1Id ? "Racing as P1" : "Racing as P2";
+  }
+
+  lobby.phase = "racing";
+  lobby.lastEvent = `${state.players.get(breakout.player1Id)?.name || "P1"} vs ${state.players.get(breakout.player2Id)?.name || "P2"} started.`;
+  broadcastTableGame("breakout");
+}
+
+function breakoutDistanceFromSeat(seat) {
+  if (!seat) return 0;
+  return breakoutScoreDistance(seat.breakout.level, seat.breakout.score);
+}
+
+async function settleBreakoutBets(lobby) {
+  if (!lobby || lobby.game !== "breakout") return;
+  const breakout = lobby.breakout;
+  const winnerId = breakout.winnerId;
+  if (!winnerId) return;
+
+  const betEntries = Object.entries(breakout.bets || {});
+  for (const [bettorId, bet] of betEntries) {
+    const bettor = state.players.get(bettorId);
+    if (!bettor) continue;
+    const amount = Math.max(0, Number(bet?.amount) || 0);
+    const targetId = String(bet?.targetId || "");
+    if (amount <= 0) continue;
+    if (targetId !== winnerId) continue;
+
+    const payout = amount * 2;
+    const creditId = `bo-bet-win-${lobby.id}-${bettorId}-${winnerId}-${Date.now()}`;
+    await sgcCreditPlayer(bettor, payout, `Breakout showdown bet win ${lobby.id}`, creditId);
+  }
+}
+
+async function settleBreakoutRacerPayouts(lobby) {
+  if (!lobby || lobby.game !== "breakout") return;
+  const breakout = lobby.breakout;
+  for (const racerId of breakoutRacerIds(lobby)) {
+    const racer = state.players.get(racerId);
+    const seat = lobby.seats.get(racerId);
+    if (!racer || !seat) continue;
+    const scorePayout = Math.max(0, Number(seat.breakout.score) || 0);
+    if (scorePayout <= 0) continue;
+    const creditId = `bo-score-${lobby.id}-${racerId}-${Date.now()}`;
+    await sgcCreditPlayer(racer, scorePayout, `Breakout showdown score payout ${lobby.id}`, creditId);
+  }
+}
+
+async function finalizeBreakoutRaceIfReady(lobby) {
+  if (!lobby || lobby.game !== "breakout") return;
+  const breakout = lobby.breakout;
+  if (breakout.state !== "racing") return;
+  const racers = breakoutRacerIds(lobby);
+  if (racers.length < 2) return;
+
+  const seatA = lobby.seats.get(racers[0]);
+  const seatB = lobby.seats.get(racers[1]);
+  if (!seatA || !seatB) return;
+  if (!seatA.breakout.finished || !seatB.breakout.finished) return;
+
+  const distA = breakoutDistanceFromSeat(seatA);
+  const distB = breakoutDistanceFromSeat(seatB);
+  let winnerId = racers[0];
+  let loserId = racers[1];
+  if (distB > distA) {
+    winnerId = racers[1];
+    loserId = racers[0];
+  } else if (distA === distB) {
+    const scoreA = Number(seatA.breakout.score) || 0;
+    const scoreB = Number(seatB.breakout.score) || 0;
+    if (scoreB > scoreA) {
+      winnerId = racers[1];
+      loserId = racers[0];
+    }
+  }
+
+  breakout.winnerId = winnerId;
+  breakout.loserId = loserId;
+  breakout.state = "showdown";
+  breakout.allowBets = false;
+  breakout.challengerPromptOpen = false;
+  breakoutMoveWinnerToP1(lobby, winnerId);
+
+  const winner = state.players.get(winnerId);
+  const loser = state.players.get(loserId);
+  breakout.scoreboard[winnerId] = {
+    score: lobby.seats.get(winnerId)?.breakout.score || 0,
+    level: lobby.seats.get(winnerId)?.breakout.level || 1,
+    distance: breakoutDistanceFromSeat(lobby.seats.get(winnerId)),
+  };
+  breakout.scoreboard[loserId] = {
+    score: lobby.seats.get(loserId)?.breakout.score || 0,
+    level: lobby.seats.get(loserId)?.breakout.level || 1,
+    distance: breakoutDistanceFromSeat(lobby.seats.get(loserId)),
+  };
+  breakout.rematchVotes = {
+    [winnerId]: null,
+    [loserId]: null,
+  };
+
+  await settleBreakoutRacerPayouts(lobby);
+  await settleBreakoutBets(lobby);
+
+  breakout.bets = {};
+  lobby.phase = "showdown";
+  breakout.showdownSummary = `${winner?.name || "Player 1"} won the showdown. Rematch?`;
+  lobby.lastEvent = `${winner?.name || "Player 1"} defeated ${loser?.name || "Player 2"}.`;
+
+  for (const id of racers) {
+    const seat = lobby.seats.get(id);
+    if (!seat) continue;
+    seat.status = id === winnerId ? "Winner" : "Runner-up";
+  }
+
+  broadcastTableGame("breakout");
+}
+
+function breakoutProgressUpdate(player, payload) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "breakout") return;
+  const breakout = lobby.breakout;
+  if (breakout.state !== "racing") return;
+  const seat = lobby.seats.get(player.id);
+  if (!seat || seat.role !== "racer") return;
+
+  seat.breakout.score = Math.max(0, Number(payload?.score) || seat.breakout.score);
+  seat.breakout.level = Math.max(1, Number(payload?.level) || seat.breakout.level);
+  seat.breakout.lives = Math.max(0, Number(payload?.lives) || seat.breakout.lives);
+  seat.breakout.distance = Math.max(seat.breakout.distance, breakoutScoreDistance(seat.breakout.level, seat.breakout.score));
+  if (seat.breakout.lives <= 0) {
+    seat.breakout.finished = true;
+  }
+}
+
+async function breakoutFinish(player, payload) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "breakout") return;
+  const breakout = lobby.breakout;
+  if (breakout.state !== "racing") return;
+  const seat = lobby.seats.get(player.id);
+  if (!seat || seat.role !== "racer") return;
+
+  seat.breakout.score = Math.max(0, Number(payload?.score) || seat.breakout.score);
+  seat.breakout.level = Math.max(1, Number(payload?.level) || seat.breakout.level);
+  seat.breakout.lives = Math.max(0, Number(payload?.lives) || 0);
+  seat.breakout.distance = Math.max(
+    seat.breakout.distance,
+    Math.max(0, Number(payload?.distance) || 0),
+    breakoutScoreDistance(seat.breakout.level, seat.breakout.score)
+  );
+  seat.breakout.finished = true;
+  seat.status = "Finished run";
+
+  await finalizeBreakoutRaceIfReady(lobby);
+}
+
+function breakoutVoteRematch(player, accept) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "breakout") return;
+  const breakout = lobby.breakout;
+  if (breakout.state !== "showdown") return;
+  if (player.id !== breakout.winnerId && player.id !== breakout.loserId) return;
+
+  breakout.rematchVotes[player.id] = !!accept;
+  const winnerVote = breakout.rematchVotes[breakout.winnerId];
+  const loserVote = breakout.rematchVotes[breakout.loserId];
+
+  if (winnerVote === true && loserVote === true) {
+    breakout.state = "waiting";
+    breakout.challengerPromptOpen = false;
+    breakout.allowBets = true;
+    breakout.showdownSummary = "Rematch accepted. Host can start the next race.";
+    breakout.rematchVotes = {};
+    lobby.phase = "waiting";
+    breakoutEnsureRoles(lobby);
+  } else if (winnerVote === false || loserVote === false) {
+    breakoutOpenChallengerPrompt(lobby, "Rematch declined. Select next challenger for Player 2.");
+  }
+
+  broadcastTableGame("breakout");
+}
+
+function breakoutForceNextChallenger(player) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "breakout") return;
+  const breakout = lobby.breakout;
+  if (breakout.state !== "showdown") return;
+  if (player.id !== breakout.winnerId && player.id !== breakout.loserId) return;
+  breakoutOpenChallengerPrompt(lobby, `${player.name} requested the next challenger.`);
+  broadcastTableGame("breakout");
+}
+
+function breakoutClaimPlayer2(player) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "breakout") return;
+  const breakout = lobby.breakout;
+  const seat = lobby.seats.get(player.id);
+  if (!seat) return;
+  if (seat.role !== "spectator") return;
+  if (!breakout.challengerPromptOpen && breakout.state !== "waiting") return;
+
+  breakout.player2Id = player.id;
+  seat.role = "racer";
+  seat.status = "Player 2";
+  breakout.challengerPromptOpen = false;
+  breakout.showdownSummary = `${player.name} claimed Player 2 seat.`;
+  breakoutEnsureRoles(lobby);
+  broadcastTableGame("breakout");
+}
+
+async function breakoutPlaceBet(player, payload) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "breakout") return;
+  const breakout = lobby.breakout;
+  const seat = lobby.seats.get(player.id);
+  if (!seat || seat.role !== "spectator") return;
+  if (!breakout.allowBets || breakout.state === "racing") return;
+
+  const targetId = String(payload?.targetPlayerId || "");
+  const amount = Math.max(1, Number(payload?.amount) || 0);
+  if (targetId !== breakout.player1Id && targetId !== breakout.player2Id) return;
+  if (amount <= 0) return;
+
+  const chargeId = `bo-bet-${lobby.id}-${player.id}-${targetId}-${Date.now()}`;
+  const charge = await sgcChargePlayer(player, amount, `Breakout bet ${lobby.id}`, chargeId);
+  if (!charge.ok) {
+    seat.status = charge.message || "Bet failed";
+    broadcastTableGame("breakout");
+    return;
+  }
+
+  breakout.bets[player.id] = {
+    targetId,
+    amount,
+  };
+  seat.status = `Bet ${amount} on ${(state.players.get(targetId)?.name || "racer")}`;
+  broadcastTableGame("breakout");
+}
+
+async function breakoutSingleStart(player) {
+  const entryCost = 25;
+  const charge = await sgcChargePlayer(
+    player,
+    entryCost,
+    "Breakout single-run entry",
+    `bo-solo-entry-${player.id}-${Date.now()}`
+  );
+
+  sendJson(player.socket, {
+    type: "breakout_single_start_result",
+    ok: charge.ok,
+    balance: player.bankroll,
+    message: charge.ok ? "Entry paid." : (charge.message || "Unable to pay entry."),
+  });
+
+  if (charge.ok) {
+    broadcastState();
+  }
+}
+
+async function breakoutSingleSettle(player, payload) {
+  const score = Math.max(0, Number(payload?.score) || 0);
+  const payout = score;
+  const credit = await sgcCreditPlayer(
+    player,
+    payout,
+    "Breakout single-run score payout",
+    `bo-solo-payout-${player.id}-${Date.now()}`
+  );
+
+  sendJson(player.socket, {
+    type: "breakout_single_settle_result",
+    ok: credit.ok,
+    payout,
+    balance: player.bankroll,
+    message: credit.ok ? "Payout settled." : (credit.message || "Payout failed."),
+  });
+
+  if (credit.ok) {
+    broadcastState();
+  }
 }
 
 function assignPlayerToLobby(player, lobby) {
@@ -2230,6 +2877,16 @@ wss.on("connection", (socket) => {
       return;
     }
 
+    if (message.type === "breakout_single_start") {
+      await breakoutSingleStart(player);
+      return;
+    }
+
+    if (message.type === "breakout_single_settle") {
+      await breakoutSingleSettle(player, message);
+      return;
+    }
+
     if (message.type === "table_watch" && tableGames.has(message.game)) {
       sendTableSnapshot(player, message.game);
       return;
@@ -2243,7 +2900,7 @@ wss.on("connection", (socket) => {
       }
 
       const lobbyCount = buildTableLobbyList(message.game).length + 1;
-      const gameLabels = { slots: "Slots", pachinko: "Pachinko", blackjack: "Blackjack", holdem: "Hold'em", horse: "Horse Race" };
+      const gameLabels = { slots: "Slots", pachinko: "Pachinko", blackjack: "Blackjack", holdem: "Hold'em", horse: "Horse Race", breakout: "Breakout Showdown" };
       const gameLabel = gameLabels[message.game] || "Table";
       const lobbyName = (typeof message.name === "string" && message.name.trim())
         ? message.name.trim().slice(0, 24)
@@ -2351,6 +3008,42 @@ wss.on("connection", (socket) => {
       return;
     }
 
+    if (message.type === "table_breakout_start") {
+      await startBreakoutShowdown(player);
+      return;
+    }
+
+    if (message.type === "table_breakout_progress") {
+      breakoutProgressUpdate(player, message);
+      broadcastTableGame("breakout");
+      return;
+    }
+
+    if (message.type === "table_breakout_finish") {
+      await breakoutFinish(player, message);
+      return;
+    }
+
+    if (message.type === "table_breakout_vote_rematch") {
+      breakoutVoteRematch(player, !!message.accept);
+      return;
+    }
+
+    if (message.type === "table_breakout_next_challenger") {
+      breakoutForceNextChallenger(player);
+      return;
+    }
+
+    if (message.type === "table_breakout_claim_player2") {
+      breakoutClaimPlayer2(player);
+      return;
+    }
+
+    if (message.type === "table_breakout_place_bet") {
+      await breakoutPlaceBet(player, message);
+      return;
+    }
+
     if (message.type === "place_bet") {
       const lobby = getLobbyForPlayer(player);
       const amount = Number(message.amount) || 0;
@@ -2435,8 +3128,11 @@ wss.on("connection", (socket) => {
   });
 
   socket.on("close", () => {
+    const tableLobbyBeforeRemove = getTableLobbyForPlayer(player);
+    const tableGame = tableLobbyBeforeRemove?.game;
     clearSignedInDelivery(player);
-    const tableGame = tableLobby?.game;
+    removePlayerFromTableLobby(player);
+    removePlayerFromLobby(player);
     state.players.delete(player.id);
     broadcastState();
     if (tableGame) broadcastTableGame(tableGame);

@@ -16,7 +16,7 @@ statusText = "[SYS] choose an arcade node.";
 
 arcadeNames = ["Breakout", "Neon Runner", "Asteroid Sweep", "Snake Grid"];
 arcadeDescriptions = [
-	"Prototype brick-breaker minigame.",
+	"Solo: 25 SGC buy-in payout. Multiplayer showdown + spectator bets.",
 	"Endless lane dash with traps. (Coming soon)",
 	"Arcade asteroid blaster. (Coming soon)",
 	"Classic snake with wager rounds. (Coming soon)"
