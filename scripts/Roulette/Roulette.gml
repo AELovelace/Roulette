@@ -8,17 +8,22 @@
 function viewResize() {
 	var _ww, _wh;
 	if (os_browser != browser_not_a_browser) {
-		// HTML5: resize the canvas element to fill the viewport exactly.
-		// CSS overflow:hidden (injected via jsprepend) prevents scrollbars.
-		_ww = max(100, browser_width);
-		_wh = max(100, browser_height);
-		// Different browsers/runners can report different values; prefer the largest
-		// to avoid clipping to a stale or constrained dimension source.
-		_ww = max(_ww, window_get_width());
-		_wh = max(_wh, window_get_height());
-		_ww = max(_ww, display_get_width());
-		_wh = max(_wh, display_get_height());
-		if (window_get_width() != _ww || window_get_height() != _wh) {
+		// In embedded HTML5 builds, browser_* tracks the iframe viewport.
+		// Using the host display size here causes the canvas to overshoot its container.
+		var _browserW = browser_width;
+		var _browserH = browser_height;
+		var _windowW = window_get_width();
+		var _windowH = window_get_height();
+		if (_browserW > 0 && _browserH > 0) {
+			_ww = _browserW;
+			_wh = _browserH;
+		} else {
+			_ww = _windowW;
+			_wh = _windowH;
+		}
+		_ww = max(100, _ww);
+		_wh = max(100, _wh);
+		if (_windowW != _ww || _windowH != _wh) {
 			window_set_size(_ww, _wh);
 		}
 	} else {

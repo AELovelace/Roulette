@@ -79,9 +79,17 @@ playButton = {
 	label: "Table Games"
 };
 
-settingsButton = {
+arcadeButton = {
 	x: buttonX,
 	y: buttonY + (buttonHeight + buttonGap) * 2,
+	w: buttonWidth,
+	h: buttonHeight,
+	label: "Arcade Games"
+};
+
+settingsButton = {
+	x: buttonX,
+	y: buttonY + (buttonHeight + buttonGap) * 3,
 	w: buttonWidth,
 	h: buttonHeight,
 	label: "Settings"

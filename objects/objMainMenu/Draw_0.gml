@@ -21,10 +21,12 @@ draw_text(VIEW_W * 0.5, 175, titleText);
 
 var signInSelected   = (hoveredButton == "signin")   || (!settingsOpen && !signInOpen && selectedButton == 0);
 var playSelected     = (hoveredButton == "play")     || (!settingsOpen && !signInOpen && selectedButton == 1);
-var settingsSelected = (hoveredButton == "settings") || (!settingsOpen && !signInOpen && selectedButton == 2);
+var arcadeSelected   = (hoveredButton == "arcade")   || (!settingsOpen && !signInOpen && selectedButton == 2);
+var settingsSelected = (hoveredButton == "settings") || (!settingsOpen && !signInOpen && selectedButton == 3);
 
 var signInFill   = signInSelected   ? buttonHoverColor    : buttonColor;
 var playFill     = playSelected     ? buttonHoverColor    : buttonColor;
+var arcadeFill   = arcadeSelected   ? buttonHoverColor    : buttonColor;
 var settingsFill = settingsSelected ? buttonAltHoverColor : buttonAltColor;
 
 // Sign-in button (with badge showing current state).
@@ -47,6 +49,14 @@ draw_set_color(lineColor);
 draw_roundrect(playButton.x, playButton.y, playButton.x + playButton.w, playButton.y + playButton.h, true);
 draw_set_color(textColor);
 draw_text(playButton.x + playButton.w * 0.5, playButton.y + playButton.h * 0.5, playButton.label);
+
+// Arcade button.
+draw_set_color(arcadeFill);
+draw_roundrect(arcadeButton.x, arcadeButton.y, arcadeButton.x + arcadeButton.w, arcadeButton.y + arcadeButton.h, false);
+draw_set_color(lineColor);
+draw_roundrect(arcadeButton.x, arcadeButton.y, arcadeButton.x + arcadeButton.w, arcadeButton.y + arcadeButton.h, true);
+draw_set_color(textColor);
+draw_text(arcadeButton.x + arcadeButton.w * 0.5, arcadeButton.y + arcadeButton.h * 0.5, arcadeButton.label);
 
 // Settings button.
 draw_set_color(settingsFill);

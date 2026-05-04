@@ -2,7 +2,7 @@
 // Micro-adjust here: table readability, chip legibility, and panel/widget placement.
 draw_clear_alpha(make_color_rgb(5, 6, 10), 1);
 
-var cx = VIEW_W * 0.5;
+var cx = VIEW_W * 0.8;
 var cy = VIEW_H * 0.5;
 var displayBallAngle = ((ballAngle mod 360) + 360) mod 360;
 var bx = cx + lengthdir_x(ballRadius, displayBallAngle);
@@ -126,7 +126,7 @@ draw_set_color(c_black);
 draw_circle(cx + 10, cy + 14, 196, false);
 draw_set_alpha(1);
 
-draw_sprite_ext(sprWheel,0,cx, cy, 2, 2, rotation, c_white,1);
+draw_sprite_ext(sprWheel,0,cx, cy, 1, 1, rotation, c_white,1);
 draw_circle_color(bx, by, 16, c_white, c_silver, false);
 
 draw_set_alpha(0.95);

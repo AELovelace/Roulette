@@ -8,8 +8,8 @@
   "name":"objTableHoldem",
   "overriddenProperties":[],
   "parent":{
-    "name":"Objects",
-    "path":"folders/Objects.yy",
+    "name":"TableGames",
+    "path":"folders/Objects/TableGames.yy",
   },
   "parentObjectId":{
     "name":"objTableGames",

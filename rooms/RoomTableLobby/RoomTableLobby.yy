@@ -17,8 +17,8 @@
   ],
   "name":"RoomTableLobby",
   "parent":{
-    "name":"Rooms",
-    "path":"folders/Rooms.yy",
+    "name":"TableGames",
+    "path":"folders/Rooms/TableGames.yy",
   },
   "parentRoom":null,
   "physicsSettings":{

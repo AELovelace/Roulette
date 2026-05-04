@@ -12,8 +12,8 @@
   "name":"objTableGames",
   "overriddenProperties":[],
   "parent":{
-    "name":"Objects",
-    "path":"folders/Objects.yy",
+    "name":"TableGames",
+    "path":"folders/Objects/TableGames.yy",
   },
   "parentObjectId":null,
   "persistent":false,

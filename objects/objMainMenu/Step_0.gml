@@ -9,6 +9,7 @@ viewResize();
 buttonX = VIEW_W * 0.5 - buttonWidth * 0.5;
 signInButton.x = buttonX;
 playButton.x = buttonX;
+arcadeButton.x = buttonX;
 settingsButton.x = buttonX;
 settingsPanel.x1 = VIEW_W * 0.5 - 290;
 settingsPanel.x2 = VIEW_W * 0.5 + 290;
@@ -171,6 +172,11 @@ function menuActivateSelection() {
 	if (selectedButton == 0) menuOpenSignIn();
 	if (selectedButton == 1) room_goto(RoomTableLobby);
 	if (selectedButton == 2) {
+		var arcadeRoom = asset_get_index("RoomArcadeLobby");
+		if (arcadeRoom != -1) room_goto(arcadeRoom);
+		else statusText = "[SYS] arcade lobby room missing.";
+	}
+	if (selectedButton == 3) {
 		settingsOpen = true;
 		statusText = "[SYS] settings panel is blank for now.";
 	}
@@ -244,7 +250,7 @@ if (!settingsOpen) {
 	}
 
 	if (keyboard_check_pressed(vk_down) || keyboard_check_pressed(ord("S"))) {
-		selectedButton = min(2, selectedButton + 1);
+		selectedButton = min(3, selectedButton + 1);
 	}
 
 	if (point_in_rectangle(mouseXPos, mouseYPos, signInButton.x, signInButton.y, signInButton.x + signInButton.w, signInButton.y + signInButton.h)) {
@@ -257,9 +263,14 @@ if (!settingsOpen) {
 		selectedButton = 1;
 	}
 
+	if (point_in_rectangle(mouseXPos, mouseYPos, arcadeButton.x, arcadeButton.y, arcadeButton.x + arcadeButton.w, arcadeButton.y + arcadeButton.h)) {
+		hoveredButton = "arcade";
+		selectedButton = 2;
+	}
+
 	if (point_in_rectangle(mouseXPos, mouseYPos, settingsButton.x, settingsButton.y, settingsButton.x + settingsButton.w, settingsButton.y + settingsButton.h)) {
 		hoveredButton = "settings";
-		selectedButton = 2;
+		selectedButton = 3;
 	}
 
 	if (keyboard_check_pressed(vk_enter) || keyboard_check_pressed(vk_space)) {
@@ -269,6 +280,11 @@ if (!settingsOpen) {
 	if (mouse_check_button_pressed(mb_left)) {
 		if (hoveredButton == "signin") menuOpenSignIn();
 		else if (hoveredButton == "play") room_goto(RoomTableLobby);
+		else if (hoveredButton == "arcade") {
+			var mouseArcadeRoom = asset_get_index("RoomArcadeLobby");
+			if (mouseArcadeRoom != -1) room_goto(mouseArcadeRoom);
+			else statusText = "[SYS] arcade lobby room missing.";
+		}
 		else if (hoveredButton == "settings") {
 			settingsOpen = true;
 			statusText = "[SYS] settings panel is blank for now.";
