@@ -16,12 +16,12 @@ statusText = "[SYS] choose a LumiGames table node.";
 
 tableNames = ["Roulette", "Slots", "Pachinko", "Blackjack", "Hold'em", "Horse Race"];
 tableDescriptions = [
-	"Single-zero wheel with synced multiplayer lobbies.",
-	"Three visible seats, live reel views.",
-	"Three visible seats, live drop boards.",
-	"Six-seat dealer blackjack with live turns.",
-	"Eight-seat Hold'em with shared pot and turns.",
-	"Twenty-seat races; host starts and all picks are visible."
+	"Single-zero wheel with synced lobbies",
+	"Three Seat Lobby",
+	"Three Seat Lobby",
+	"Six-seat dealer blackjack",
+	"Eight-seat Hold'em",
+	"Twenty-seat races"
 ];
 tableRooms = [RoomRoulette, RoomSlots, RoomPachinko, RoomBlackjack, RoomHoldem, RoomHorseRace];
 

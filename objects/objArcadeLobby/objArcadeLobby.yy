@@ -10,8 +10,8 @@
   "name":"objArcadeLobby",
   "overriddenProperties":[],
   "parent":{
-    "name":"TableGames",
-    "path":"folders/Objects/TableGames.yy",
+    "name":"UI",
+    "path":"folders/Objects/UI.yy",
   },
   "parentObjectId":null,
   "persistent":false,

@@ -91,6 +91,16 @@ switch (eventType) {
 
 				if (kind == "table_state" && rouletteStructGet(message, "game", "") == showdownGameKey) {
 					showdownLobbyList = rouletteStructGet(message, "lobbies", []);
+					var selectedStillExists = false;
+					for (var lobbyIndex = 0; lobbyIndex < array_length(showdownLobbyList); lobbyIndex++) {
+						if (rouletteStructGet(showdownLobbyList[lobbyIndex], "id", "") == showdownSelectedLobbyId) {
+							selectedStillExists = true;
+							break;
+						}
+					}
+					if (!selectedStillExists) {
+						showdownSelectedLobbyId = array_length(showdownLobbyList) > 0 ? rouletteStructGet(showdownLobbyList[0], "id", "") : "";
+					}
 					showdownCurrentLobbyId = rouletteStructGet(message, "currentLobbyId", showdownCurrentLobbyId);
 					showdownCurrentLobbyName = rouletteStructGet(message, "currentLobbyName", showdownCurrentLobbyName);
 					showdownParticipants = rouletteStructGet(message, "participants", []);
@@ -109,6 +119,9 @@ switch (eventType) {
 						showdownAllowBets = rouletteStructGet(breakoutData, "allowBets", showdownAllowBets);
 						showdownSummary = rouletteStructGet(breakoutData, "showdownSummary", showdownSummary);
 						showdownRematchVotes = rouletteStructGet(breakoutData, "rematchVotes", showdownRematchVotes);
+						showdownBreakoutBets = rouletteStructGet(breakoutData, "bets", showdownBreakoutBets);
+					} else {
+						showdownBreakoutBets = [];
 					}
 
 					showdownRole = "spectator";
@@ -157,21 +170,35 @@ switch (eventType) {
 					}
 
 					if (mode == "showdown") {
-						if (showdownState == "racing" && showdownRole == "racer" && state != "PLAYING") {
-							breakoutBeginRun(id);
+						if (showdownState == "racing" && showdownRole == "racer" && !showdownLocalFinished) {
+							var newRaceSeed = max(0, showdownRaceSeed);
+							var startedSeed = max(0, localRaceSeedStarted);
+							if (state != "PLAYING" || startedSeed != newRaceSeed) {
+								breakoutBeginRun(id);
+							}
+						}
+						if (showdownState == "racing" && showdownRole == "racer" && showdownLocalFinished) {
+							state = "SHOWDOWN_WATCH";
+							breakoutHideBoard();
 						}
 						if (showdownState == "racing" && showdownRole != "racer") {
 							state = "SHOWDOWN_WATCH";
 							breakoutHideBoard();
 						}
 						if (showdownState != "racing" && state == "PLAYING") {
-							state = "SHOWDOWN_LOBBY";
+							state = "SHOWDOWN_WATCH";
 							breakoutHideBoard();
+						}
+						if (showdownState != "racing") {
+							showdownLocalFinished = false;
 						}
 						if (showdownState != "racing" && state == "SHOWDOWN_WATCH") {
 							state = "SHOWDOWN_LOBBY";
 						}
 						if (state == "SHOWDOWN_LOBBY") {
+							statusText = showdownSummary;
+						}
+						if (state == "SHOWDOWN_WATCH") {
 							statusText = showdownSummary;
 						}
 					}

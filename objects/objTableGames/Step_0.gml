@@ -26,8 +26,6 @@ var backButton = { x: VIEW_W - 326, y: 20, w: 128, h: 42, label: tableRoomLocked
 var mainMenuButton = { x: VIEW_W - 178, y: 20, w: 148, h: 42, label: "Main Menu" };
 var spinButton = { x: 90, y: 636, w: 190, h: 56, label: "Spin" };
 var dropButton = { x: 88, y: 636, w: 190, h: 56, label: "Drop" };
-var pegMinusButton = { x: 318, y: 636, w: 52, h: 56, label: "-" };
-var pegPlusButton = { x: 486, y: 636, w: 52, h: 56, label: "+" };
 var bjDealButton = { x: 82, y: 636, w: 142, h: 56, label: "Deal" };
 var bjHitButton = { x: 242, y: 636, w: 142, h: 56, label: "Hit" };
 var bjStayButton = { x: 402, y: 636, w: 142, h: 56, label: "Stay" };
@@ -85,9 +83,16 @@ for (var betIndex = 0; betIndex < array_length(betOptions); betIndex += 1) {
 				slotSeats[0] = humanSlotSeat;
 			}
 			if (array_length(pachinkoSeats) > 0) {
-				var humanPachinkoSeat = pachinkoSeats[0];
+				var humanPachinkoSeatIndex = 0;
+				for (var pachinkoSeatIndex = 0; pachinkoSeatIndex < array_length(pachinkoSeats); pachinkoSeatIndex += 1) {
+					if (rouletteStructGet(pachinkoSeats[pachinkoSeatIndex], "isHuman", false)) {
+						humanPachinkoSeatIndex = pachinkoSeatIndex;
+						break;
+					}
+				}
+				var humanPachinkoSeat = pachinkoSeats[humanPachinkoSeatIndex];
 				humanPachinkoSeat.bet = currentBet();
-				pachinkoSeats[0] = humanPachinkoSeat;
+				pachinkoSeats[humanPachinkoSeatIndex] = humanPachinkoSeat;
 			}
 			if (tableMultiplayerEnabled && tableBrokerConnected && tableCurrentLobbyId != "") {
 				rouletteSendJson(tableBrokerSocket, { type: "table_set_bet", amount: currentBet() });
@@ -196,22 +201,45 @@ if (selectedGame == GAME_SLOTS) {
 
 if (selectedGame == GAME_PACHINKO) {
 	if (tablePointInButton(dropButton, mouseXPos, mouseYPos)) hoveredControl = "drop";
-	if (tablePointInButton(pegMinusButton, mouseXPos, mouseYPos)) hoveredControl = "peg_minus";
-	if (tablePointInButton(pegPlusButton, mouseXPos, mouseYPos)) hoveredControl = "peg_plus";
-	var humanPachinko = pachinkoSeats[0];
-	if (mouse_check_button_pressed(mb_left) && tablePointInButton(pegMinusButton, mouseXPos, mouseYPos) && !humanPachinko.running) {
-		humanPachinko.guess = max(1, humanPachinko.guess - 1);
-		pachinkoGuess = humanPachinko.guess;
-		pachinkoSeats[0] = humanPachinko;
-		if (tableMultiplayerEnabled && tableBrokerConnected && tableCurrentLobbyId != "") rouletteSendJson(tableBrokerSocket, { type: "table_set_peg", peg: pachinkoGuess });
-		setTableStatus("Pachinko peg set to " + string(pachinkoGuess) + ".");
+	var humanPachinkoSeatIndex = 0;
+	for (var seatIndex = 0; seatIndex < array_length(pachinkoSeats); seatIndex += 1) {
+		if (rouletteStructGet(pachinkoSeats[seatIndex], "isHuman", false)) {
+			humanPachinkoSeatIndex = seatIndex;
+			break;
+		}
 	}
-	if (mouse_check_button_pressed(mb_left) && tablePointInButton(pegPlusButton, mouseXPos, mouseYPos) && !humanPachinko.running) {
-		humanPachinko.guess = min(10, humanPachinko.guess + 1);
-		pachinkoGuess = humanPachinko.guess;
-		pachinkoSeats[0] = humanPachinko;
-		if (tableMultiplayerEnabled && tableBrokerConnected && tableCurrentLobbyId != "") rouletteSendJson(tableBrokerSocket, { type: "table_set_peg", peg: pachinkoGuess });
-		setTableStatus("Pachinko peg set to " + string(pachinkoGuess) + ".");
+	if (array_length(pachinkoSeats) > humanPachinkoSeatIndex && is_struct(pachinkoSeats[humanPachinkoSeatIndex]) && rouletteStructGet(pachinkoSeats[humanPachinkoSeatIndex], "active", false)) {
+		var panelW = 360;
+		var panelGap = 50;
+		var panelLeft = (VIEW_W - (panelW * 3 + panelGap * 2)) * 0.5 + humanPachinkoSeatIndex * (panelW + panelGap);
+		var panelTop = 236;
+		var boardLeft = panelLeft + 36;
+		var boardTop = panelTop + 80;
+		var gapX = 26;
+		var gapY = 20;
+		var labelTop = boardTop + pachinkoRows * gapY + 24;
+		var humanRunning = rouletteStructGet(pachinkoSeats[humanPachinkoSeatIndex], "running", false);
+		var humanGuess = rouletteStructGet(pachinkoSeats[humanPachinkoSeatIndex], "guess", 5);
+		for (var footer = 0; footer < pachinkoWidth; footer += 1) {
+			var labelLeft = boardLeft + footer * gapX;
+			if (point_distance(mouseXPos, mouseYPos, labelLeft, labelTop) <= 12) {
+				hoveredControl = "pachinko_peg_" + string(footer + 1);
+				if (mouse_check_button_pressed(mb_left) && !humanRunning) {
+					var nextGuess = footer + 1;
+					if (humanGuess != nextGuess) {
+						var updatedPachinkoSeat = pachinkoSeats[humanPachinkoSeatIndex];
+						variable_struct_set(updatedPachinkoSeat, "guess", nextGuess);
+						pachinkoGuess = nextGuess;
+						pachinkoSeats[humanPachinkoSeatIndex] = updatedPachinkoSeat;
+						if (tableMultiplayerEnabled && tableBrokerConnected && tableCurrentLobbyId != "") {
+							rouletteSendJson(tableBrokerSocket, { type: "table_set_peg", peg: pachinkoGuess });
+						}
+						setTableStatus("Pachinko peg set to " + string(pachinkoGuess) + ".");
+					}
+				}
+				break;
+			}
+		}
 	}
 	if ((mouse_check_button_pressed(mb_left) && tablePointInButton(dropButton, mouseXPos, mouseYPos)) || keyboard_check_pressed(vk_space)) {
 		if (tableMultiplayerEnabled && tableBrokerConnected && tableCurrentLobbyId != "") {

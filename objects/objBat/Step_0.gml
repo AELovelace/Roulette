@@ -1,4 +1,9 @@
 //key left
+if (instance_exists(objBOCtrl)) {
+	var ctrl = instance_find(objBOCtrl, 0);
+	if (instance_exists(ctrl) && variable_instance_get(ctrl, "state") != "PLAYING") exit;
+}
+
 var boundsLeft = 0;
 var boundsRight = room_width;
 if (variable_global_exists("breakoutBoundsActive") && global.breakoutBoundsActive) {

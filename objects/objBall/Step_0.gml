@@ -29,16 +29,20 @@ if (go) {
 		bounced = true;
 	}
 	if (bbox_bottom > boundsBottom) {
-		global.BOPLives -= 1;
-		if (global.BOPLives <= 0) {
-			if (global.BOPScore > global.highScore) {
-				global.highScore = global.BOPScore;
+		var totalBalls = instance_number(objBall) + instance_number(objBallExtra);
+		var lastBall = totalBalls <= 1;
+		if (lastBall) {
+			global.BOPLives -= 1;
+			if (global.BOPLives <= 0) {
+				if (global.BOPScore > global.highScore) {
+					global.highScore = global.BOPScore;
+				}
+				with (objBOCtrl) {
+					state = "GAMEOVER";
+				}
+			} else {
+				breakoutResetBallStack();
 			}
-			with (objBOCtrl) {
-				state = "GAMEOVER";
-			}
-		} else if (instance_number(objBall) <= 0 && instance_number(objBallExtra) <= 0) {
-			instance_create_layer(xstart, ystart, layer, objBall);
 		}
 		instance_destroy();
 		exit;

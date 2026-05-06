@@ -1061,6 +1061,12 @@ function breakoutOpenChallengerPrompt(lobby, reasonText) {
 function breakoutSnapshot(lobby) {
   if (!lobby || lobby.game !== "breakout") return undefined;
   const breakout = lobby.breakout;
+  const betLedger = Object.entries(breakout.bets || {}).map(([bettorId, bet]) => ({
+    bettorId,
+    bettorName: state.players.get(bettorId)?.name || "Spectator",
+    targetId: String(bet?.targetId || ""),
+    amount: Math.max(0, Number(bet?.amount) || 0),
+  })).filter((entry) => entry.amount > 0 && entry.targetId);
   return {
     state: breakout.state,
     player1Id: breakout.player1Id,
@@ -1073,6 +1079,7 @@ function breakoutSnapshot(lobby) {
     showdownSummary: breakout.showdownSummary,
     rematchVotes: breakout.rematchVotes,
     scoreboard: breakout.scoreboard,
+    bets: betLedger,
   };
 }
 

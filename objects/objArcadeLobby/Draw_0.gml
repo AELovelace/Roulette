@@ -24,7 +24,7 @@ draw_line(0, 84, VIEW_W, 84);
 draw_set_halign(fa_left);
 draw_set_valign(fa_middle);
 draw_set_color(textColor);
-draw_text(30, 34, "DollOS V-3.0 // LumiGames Casino");
+draw_text(30, 34, "DollOS V-3.33 // LumiGames");
 draw_set_color(mutedTextColor);
 draw_text(30, 64, "> ARCADE NODES // prototype minigames // SGC.WTF live build");
 

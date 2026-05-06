@@ -1,7 +1,7 @@
 // Main menu boot/setup.
 // Micro-adjust here: default status copy, persisted SGC identity fields, and menu panel sizing/colors.
 titleText = "SADGIRLSCLUB.WTF";
-subtitleText = "DollOS V-3.0 // LumiGames Casino";
+subtitleText = "DollOS V-3.33 // LumiGames";
 statusText = "[SYS] choose a node.";
 settingsOpen = false;
 signInOpen = false;

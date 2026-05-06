@@ -356,7 +356,9 @@ function breakoutBeginRun(_ctrl) {
 	_ctrl.lastRunPayout = 0;
 	_ctrl.runNet = -_ctrl.entryCost;
 	_ctrl.localRaceSubmitted = false;
+	_ctrl.showdownLocalFinished = false;
 	if (_ctrl.mode == "showdown") {
+		_ctrl.localRaceSeedStarted = _ctrl.showdownRaceSeed;
 		_ctrl.gridRows = _ctrl.showdownGridRows;
 		_ctrl.currentArenaX = (_ctrl.breakoutPlayerId != "" && _ctrl.breakoutPlayerId == _ctrl.showdownPlayer2Id) ? _ctrl.showdownArenaRightX : _ctrl.showdownArenaLeftX;
 		_ctrl.currentArenaY = _ctrl.showdownArenaY;

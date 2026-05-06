@@ -256,10 +256,11 @@ function drawSlotsGame() {
 	drawGameShell("SadGirl Slots // 3-seat lobby", slotMessage);
 	for (var seatIndex = 0; seatIndex < array_length(slotSeats); seatIndex += 1) {
 		var seat = slotSeats[seatIndex];
-		var panelLeft = 70 + seatIndex * 410;
-		var panelTop = 244;
 		var panelW = 360;
-		var panelH = 276;
+		var panelGap = 50;
+		var panelLeft = (VIEW_W - (panelW * 3 + panelGap * 2)) * 0.5 + seatIndex * (panelW + panelGap);
+		var panelTop = 236;
+		var panelH = 316;
 		if (!seat.active) {
 			draw_set_color(make_color_rgb(10, 12, 20));
 			draw_roundrect(panelLeft, panelTop, panelLeft + panelW, panelTop + panelH, false);
@@ -305,23 +306,24 @@ function drawSlotsGame() {
 		draw_set_halign(fa_left);
 		draw_set_valign(fa_top);
 		draw_set_color(seat.spinTimer > 0 ? accentHoverColor : mutedTextColor);
-		draw_text(panelLeft + 18, panelTop + panelH - 34, seat.status);
+		draw_text(panelLeft + 18, panelTop + 286, seat.status);
 	}
 	draw_set_halign(fa_left);
 	draw_set_valign(fa_top);
 	draw_set_color(mutedTextColor);
-	draw_text(74, 542, "Real-Time Multiplayer Slots");
-	draw_text(74, 566, "Rows and diagonals pay. Bell completes a pair as wild.");
+	draw_text(74, 574, "Real-Time Multiplayer Slots");
+	draw_text(74, 598, "Rows and diagonals pay. Bell completes a pair as wild.");
 }
 
 function drawPachinkoGame() {
 	drawGameShell("Pachinko Drop // 3-seat lobby", pachinkoMessage);
 	for (var seatIndex = 0; seatIndex < array_length(pachinkoSeats); seatIndex += 1) {
 		var seat = pachinkoSeats[seatIndex];
-		var panelLeft = 70 + seatIndex * 410;
-		var panelTop = 238;
 		var panelW = 360;
-		var panelH = 306;
+		var panelGap = 50;
+		var panelLeft = (VIEW_W - (panelW * 3 + panelGap * 2)) * 0.5 + seatIndex * (panelW + panelGap);
+		var panelTop = 236;
+		var panelH = 346;
 		if (!seat.active) {
 			draw_set_color(make_color_rgb(10, 12, 20));
 			draw_roundrect(panelLeft, panelTop, panelLeft + panelW, panelTop + panelH, false);
@@ -409,12 +411,12 @@ function drawPachinkoGame() {
 		draw_set_halign(fa_left);
 		draw_set_valign(fa_top);
 		draw_set_color(seat.running ? accentHoverColor : mutedTextColor);
-		draw_text(panelLeft + 18, panelTop + panelH - 34, seat.status);
+		draw_text(panelLeft + 18, panelTop + 314, seat.status);
 	}
 	draw_set_halign(fa_left);
 	draw_set_valign(fa_top);
 	draw_set_color(mutedTextColor);
-	draw_text(74, 566, "Exact pays 2x, one off pays 1.5x, two off returns the bet. All seats animate independently.");
+	draw_text(74, 600, "Exact pays 2x, one off pays 1.5x, two off returns the bet. All seats animate independently.");
 }
 
 function drawBlackjackGame() {
@@ -629,7 +631,7 @@ if (selectedGame == GAME_HORSE) drawHorseGame();
 
 var actionButtons = [];
 if (selectedGame == GAME_SLOTS) actionButtons = [{ x: 90, y: 636, w: 190, h: 56, label: "Spin" }];
-if (selectedGame == GAME_PACHINKO) actionButtons = [{ x: 88, y: 636, w: 190, h: 56, label: "Drop" }, { x: 318, y: 636, w: 52, h: 56, label: "-" }, { x: 486, y: 636, w: 52, h: 56, label: "+" }];
+if (selectedGame == GAME_PACHINKO) actionButtons = [{ x: 88, y: 636, w: 190, h: 56, label: "Drop" }];
 if (selectedGame == GAME_BLACKJACK) actionButtons = [{ x: 82, y: 636, w: 142, h: 56, label: "Deal" }, { x: 242, y: 636, w: 142, h: 56, label: "Hit" }, { x: 402, y: 636, w: 142, h: 56, label: "Stay" }];
 if (selectedGame == GAME_HOLDEM) actionButtons = [{ x: 82, y: 636, w: 130, h: 56, label: "Deal" }, { x: 228, y: 636, w: 130, h: 56, label: "Check" }, { x: 374, y: 636, w: 130, h: 56, label: "Raise" }, { x: 520, y: 636, w: 130, h: 56, label: "Fold" }];
 if (selectedGame == GAME_HORSE) {

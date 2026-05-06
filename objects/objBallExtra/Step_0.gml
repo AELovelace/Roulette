@@ -33,6 +33,21 @@ if (go) {
 		bounced = true;
 	}
 	if (bbox_bottom > boundsBottom) {
+		var totalBalls = instance_number(objBall) + instance_number(objBallExtra);
+		var lastBall = totalBalls <= 1;
+		if (lastBall) {
+			global.BOPLives -= 1;
+			if (global.BOPLives <= 0) {
+				if (global.BOPScore > global.highScore) {
+					global.highScore = global.BOPScore;
+				}
+				with (objBOCtrl) {
+					state = "GAMEOVER";
+				}
+			} else {
+				breakoutResetBallStack();
+			}
+		}
 		instance_destroy();
 		exit;
 	}

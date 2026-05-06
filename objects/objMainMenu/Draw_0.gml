@@ -39,7 +39,7 @@ draw_text(signInButton.x + signInButton.w * 0.5, signInButton.y + signInButton.h
 draw_set_color(global.sgcSignedIn ? lineColor : make_color_rgb(180, 180, 180));
 var badge = global.sgcSignedIn
 	? "linked: " + (global.sgcDisplayName != "" ? global.sgcDisplayName : global.sgcExternalId)
-	: (string_trim(global.sgcExternalId) != "" ? "guest mode (ID saved for re-login)" : "guest mode (click to link)");
+	: (string_trim(global.sgcExternalId) != "" ? "guest mode" : "guest mode (click to link)");
 draw_text(signInButton.x + signInButton.w * 0.5, signInButton.y + signInButton.h * 0.5 + 14, badge);
 
 // Play button.
