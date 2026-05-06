@@ -79,7 +79,6 @@
   "resourceType":"GMProject",
   "resourceVersion":"2.0",
   "RoomOrderNodes":[
-    {"roomId":{"name":"rmSnake","path":"rooms/rmSnake/rmSnake.yy",},},
     {"roomId":{"name":"RoomMenu","path":"rooms/RoomMenu/RoomMenu.yy",},},
     {"roomId":{"name":"RoomArcadeLobby","path":"rooms/RoomArcadeLobby/RoomArcadeLobby.yy",},},
     {"roomId":{"name":"RoomTableLobby","path":"rooms/RoomTableLobby/RoomTableLobby.yy",},},
@@ -90,6 +89,7 @@
     {"roomId":{"name":"RoomHoldem","path":"rooms/RoomHoldem/RoomHoldem.yy",},},
     {"roomId":{"name":"RoomHorseRace","path":"rooms/RoomHorseRace/RoomHorseRace.yy",},},
     {"roomId":{"name":"RoomRoulette","path":"rooms/RoomRoulette/RoomRoulette.yy",},},
+    {"roomId":{"name":"rmSnake","path":"rooms/rmSnake/rmSnake.yy",},},
   ],
   "templateType":"game",
   "TextureGroups":[

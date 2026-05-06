@@ -126,8 +126,8 @@ switch (eventType) {
 					showdownRole = "spectator";
 					showdownP1Name = "Player 1";
 					showdownP2Name = "Player 2";
-					showdownP1Snake = { score: 0, length: 3, distance: 0, headXNorm: 0.5, headYNorm: 0.5, alive: true };
-					showdownP2Snake = { score: 0, length: 3, distance: 0, headXNorm: 0.5, headYNorm: 0.5, alive: true };
+					showdownP1Snake = { score: 0, length: 3, distance: 0, headXNorm: 0.5, headYNorm: 0.5, alive: true, segmentPoints: [] };
+					showdownP2Snake = { score: 0, length: 3, distance: 0, headXNorm: 0.5, headYNorm: 0.5, alive: true, segmentPoints: [] };
 
 					for (var i = 0; i < array_length(showdownParticipants); i++) {
 						var participant = showdownParticipants[i];

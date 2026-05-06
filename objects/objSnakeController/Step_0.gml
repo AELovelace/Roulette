@@ -20,35 +20,59 @@ if (state == "START") {
 
 if (state == "SHOWDOWN_LOBBY") {
 	var panelX1 = 16;
-	var panelY1 = 120;
+	var panelY1 = 86;
 	var panelX2 = room_width - 16;
-	var listX = panelX1 + 18;
-	var listW = panelX2 - panelX1 - 36;
-	var rowH = 36;
-	var listY = panelY1 + 72;
-	var createButton = { x1: panelX1 + 18, y1: panelY1 + 14, x2: panelX1 + 210, y2: panelY1 + 52 };
-	var joinButton = { x1: panelX1 + 222, y1: panelY1 + 14, x2: panelX1 + 414, y2: panelY1 + 52 };
-	var leaveButton = { x1: panelX1 + 426, y1: panelY1 + 14, x2: panelX1 + 618, y2: panelY1 + 52 };
-	var startButton = { x1: panelX1 + 630, y1: panelY1 + 14, x2: panelX1 + 822, y2: panelY1 + 52 };
-	var betY = panelY1 + 330;
-	var chipW = 88;
-	var chipGap = 10;
-	var betP1Button = { x1: panelX1 + 18, y1: betY + 54, x2: panelX1 + 280, y2: betY + 118 };
-	var betP2Button = { x1: panelX1 + 296, y1: betY + 54, x2: panelX1 + 558, y2: betY + 118 };
-	var claimButton = { x1: panelX1 + 18, y1: betY + 132, x2: panelX1 + 280, y2: betY + 170 };
-	var rematchYesButton = { x1: panelX1 + 18, y1: betY + 184, x2: panelX1 + 210, y2: betY + 222 };
-	var rematchNoButton = { x1: panelX1 + 222, y1: betY + 184, x2: panelX1 + 414, y2: betY + 222 };
-	var nextChallengerButton = { x1: panelX1 + 426, y1: betY + 184, x2: panelX1 + 680, y2: betY + 222 };
+	var panelY2 = room_height - 24;
+	var contentLeft = panelX1 + 18;
+	var contentRight = panelX2 - 18;
+	var gap = 14;
+	var headerY1 = panelY1 + 12;
+	var headerY2 = headerY1 + 64;
+	var primaryTop = headerY2 + 22;
+	var participantsW = clamp(floor(room_width * 0.24), 260, 300);
+	var participantsX = contentRight - participantsW;
+	var contentW = clamp(participantsX - contentLeft - gap, 260, 680);
+	var primaryW = floor((contentW - gap) * 0.5);
+	var mediumW = 190;
+	var buttonH = 40;
+	var listX = contentLeft;
+	var listY = primaryTop + buttonH + 28;
+	var listW = contentW;
+	var listRowH = 34;
+	var betSectionY = primaryTop + 88;
+	var chipRowY = betSectionY + 22;
+	var chipW = floor((contentW - gap * 4) / 5);
+	var chipH = 30;
+	var betSpotY = chipRowY + chipH + 14;
+	var betSpotW = floor((contentW - gap) * 0.5);
+	var betSpotH = 94;
+	var claimY = betSpotY + betSpotH + 22;
+	var rematchY = claimY + 58;
+	var createButton = { x1: contentLeft, y1: primaryTop, x2: contentLeft + primaryW, y2: primaryTop + buttonH };
+	var joinButton = { x1: contentLeft + primaryW + gap, y1: primaryTop, x2: contentLeft + primaryW * 2 + gap, y2: primaryTop + buttonH };
+	var leaveButton = { x1: contentLeft + primaryW + gap, y1: primaryTop, x2: contentLeft + primaryW * 2 + gap, y2: primaryTop + buttonH };
+	var startButton = { x1: contentLeft, y1: primaryTop, x2: contentLeft + primaryW, y2: primaryTop + buttonH };
+	var betP1Button = { x1: contentLeft, y1: betSpotY, x2: contentLeft + betSpotW, y2: betSpotY + betSpotH };
+	var betP2Button = { x1: contentLeft + betSpotW + gap, y1: betSpotY, x2: contentLeft + betSpotW * 2 + gap, y2: betSpotY + betSpotH };
+	var claimButton = { x1: contentLeft, y1: claimY, x2: contentLeft + 270, y2: claimY + buttonH };
+	var rematchYesButton = { x1: contentLeft, y1: rematchY, x2: contentLeft + mediumW, y2: rematchY + buttonH };
+	var rematchNoButton = { x1: contentLeft + mediumW + gap, y1: rematchY, x2: contentLeft + mediumW * 2 + gap, y2: rematchY + buttonH };
+	var nextChallengerButton = { x1: contentLeft + mediumW * 2 + gap * 2, y1: rematchY, x2: contentLeft + mediumW * 2 + gap * 2 + 220, y2: rematchY + buttonH };
+	var betChip1Button = { x1: contentLeft, y1: chipRowY, x2: contentLeft + chipW, y2: chipRowY + chipH };
+	var betChip5Button = { x1: contentLeft + (chipW + gap) * 1, y1: chipRowY, x2: contentLeft + (chipW + gap) * 1 + chipW, y2: chipRowY + chipH };
+	var betChip10Button = { x1: contentLeft + (chipW + gap) * 2, y1: chipRowY, x2: contentLeft + (chipW + gap) * 2 + chipW, y2: chipRowY + chipH };
+	var betChip25Button = { x1: contentLeft + (chipW + gap) * 3, y1: chipRowY, x2: contentLeft + (chipW + gap) * 3 + chipW, y2: chipRowY + chipH };
+	var betChip100Button = { x1: contentLeft + (chipW + gap) * 4, y1: chipRowY, x2: contentLeft + (chipW + gap) * 4 + chipW, y2: chipRowY + chipH };
 
 	hoverCreate = point_in_rectangle(mx, my, createButton.x1, createButton.y1, createButton.x2, createButton.y2);
 	hoverJoin = point_in_rectangle(mx, my, joinButton.x1, joinButton.y1, joinButton.x2, joinButton.y2);
 	hoverLeave = point_in_rectangle(mx, my, leaveButton.x1, leaveButton.y1, leaveButton.x2, leaveButton.y2);
 	hoverStartRace = point_in_rectangle(mx, my, startButton.x1, startButton.y1, startButton.x2, startButton.y2);
-	hoverBet1 = point_in_rectangle(mx, my, panelX1 + 18, betY + 12, panelX1 + 18 + chipW, betY + 42);
-	hoverBet5 = point_in_rectangle(mx, my, panelX1 + 18 + (chipW + chipGap), betY + 12, panelX1 + 18 + (chipW + chipGap) + chipW, betY + 42);
-	hoverBet10 = point_in_rectangle(mx, my, panelX1 + 18 + (chipW + chipGap) * 2, betY + 12, panelX1 + 18 + (chipW + chipGap) * 2 + chipW, betY + 42);
-	hoverBet25 = point_in_rectangle(mx, my, panelX1 + 18 + (chipW + chipGap) * 3, betY + 12, panelX1 + 18 + (chipW + chipGap) * 3 + chipW, betY + 42);
-	hoverBet100 = point_in_rectangle(mx, my, panelX1 + 18 + (chipW + chipGap) * 4, betY + 12, panelX1 + 18 + (chipW + chipGap) * 4 + chipW, betY + 42);
+	hoverBet1 = point_in_rectangle(mx, my, betChip1Button.x1, betChip1Button.y1, betChip1Button.x2, betChip1Button.y2);
+	hoverBet5 = point_in_rectangle(mx, my, betChip5Button.x1, betChip5Button.y1, betChip5Button.x2, betChip5Button.y2);
+	hoverBet10 = point_in_rectangle(mx, my, betChip10Button.x1, betChip10Button.y1, betChip10Button.x2, betChip10Button.y2);
+	hoverBet25 = point_in_rectangle(mx, my, betChip25Button.x1, betChip25Button.y1, betChip25Button.x2, betChip25Button.y2);
+	hoverBet100 = point_in_rectangle(mx, my, betChip100Button.x1, betChip100Button.y1, betChip100Button.x2, betChip100Button.y2);
 	hoverBetP1 = point_in_rectangle(mx, my, betP1Button.x1, betP1Button.y1, betP1Button.x2, betP1Button.y2);
 	hoverBetP2 = point_in_rectangle(mx, my, betP2Button.x1, betP2Button.y1, betP2Button.x2, betP2Button.y2);
 	hoverClaim = point_in_rectangle(mx, my, claimButton.x1, claimButton.y1, claimButton.x2, claimButton.y2);
@@ -67,8 +91,8 @@ if (state == "SHOWDOWN_LOBBY") {
 		var inCurrentLobby = showdownCurrentLobbyId != "";
 		if (!inCurrentLobby) {
 			for (var i = 0; i < min(6, array_length(showdownLobbyList)); i++) {
-				var rowY = listY + i * (rowH + 8);
-				if (mouse_check_button_pressed(mb_left) && point_in_rectangle(mx, my, listX, rowY, listX + listW, rowY + rowH)) {
+				var rowY = listY + i * (listRowH + 8);
+				if (mouse_check_button_pressed(mb_left) && point_in_rectangle(mx, my, listX, rowY, listX + listW, rowY + listRowH)) {
 					showdownSelectedLobbyId = rouletteStructGet(showdownLobbyList[i], "id", showdownSelectedLobbyId);
 				}
 			}
@@ -92,6 +116,9 @@ if (state == "SHOWDOWN_LOBBY") {
 					var targetId = selectedBetTarget == 1 ? showdownPlayer1Id : showdownPlayer2Id;
 					if (targetId != "") {
 						rouletteSendJson(snakeBrokerSocket, { type: "table_snake_place_bet", targetPlayerId: targetId, amount: selectedBetAmount });
+						statusText = "[SGC] Adding " + string(selectedBetAmount) + " on " + (selectedBetTarget == 1 ? showdownP1Name : showdownP2Name) + ".";
+					} else {
+						statusText = "[SGC] No racer in that seat yet.";
 					}
 				}
 			}
@@ -149,6 +176,7 @@ if (state == "GAMEOVER") {
 				distance: finishTelemetry.distance,
 				headXNorm: finishTelemetry.headXNorm,
 				headYNorm: finishTelemetry.headYNorm,
+				segmentPoints: finishTelemetry.segmentPoints,
 				alive: finishTelemetry.alive
 			});
 			statusText = "Waiting for showdown result...";
@@ -216,7 +244,7 @@ if (state == "PLAYING") {
 
 		if (ateFood) {
 			snakeScore += foodPoints;
-			if (!spawn_food(gameBoard, gridW, gridH)) {
+			if (!snakeSpawnFood(id)) {
 				snakeAlive = false;
 				state = "GAMEOVER";
 				exit;
@@ -241,6 +269,7 @@ if (state == "PLAYING") {
 				distance: telemetry.distance,
 				headXNorm: telemetry.headXNorm,
 				headYNorm: telemetry.headYNorm,
+				segmentPoints: telemetry.segmentPoints,
 				alive: telemetry.alive
 			});
 		}

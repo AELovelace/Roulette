@@ -896,6 +896,7 @@ function createEmptyTableSeat(player) {
       distance: 0,
       headXNorm: 0.5,
       headYNorm: 0.5,
+      segmentPoints: [],
       alive: true,
       finished: false,
       acceptedRematch: null,
@@ -2349,6 +2350,7 @@ function snakeResetRaceSeat(seat) {
   seat.snake.distance = 0;
   seat.snake.headXNorm = 0.5;
   seat.snake.headYNorm = 0.5;
+  seat.snake.segmentPoints = [];
   seat.snake.alive = true;
   seat.snake.finished = false;
   seat.snake.acceptedRematch = null;
@@ -2581,6 +2583,9 @@ function snakeProgressUpdate(player, payload) {
   seat.snake.distance = Math.max(0, Number(payload?.distance) || seat.snake.distance, snakeScoreDistance(seat.snake.length, seat.snake.score));
   seat.snake.headXNorm = Math.min(1, Math.max(0, Number(payload?.headXNorm) || seat.snake.headXNorm));
   seat.snake.headYNorm = Math.min(1, Math.max(0, Number(payload?.headYNorm) || seat.snake.headYNorm));
+  seat.snake.segmentPoints = Array.isArray(payload?.segmentPoints)
+    ? payload.segmentPoints.map((value) => Math.min(1, Math.max(0, Number(value) || 0))).slice(0, 600)
+    : seat.snake.segmentPoints;
   seat.snake.alive = payload?.alive === false ? false : seat.snake.alive;
   if (seat.snake.alive === false) {
     seat.snake.finished = true;
@@ -2600,6 +2605,9 @@ async function snakeFinish(player, payload) {
   seat.snake.distance = Math.max(0, Number(payload?.distance) || seat.snake.distance, snakeScoreDistance(seat.snake.length, seat.snake.score));
   seat.snake.headXNorm = Math.min(1, Math.max(0, Number(payload?.headXNorm) || seat.snake.headXNorm));
   seat.snake.headYNorm = Math.min(1, Math.max(0, Number(payload?.headYNorm) || seat.snake.headYNorm));
+  seat.snake.segmentPoints = Array.isArray(payload?.segmentPoints)
+    ? payload.segmentPoints.map((value) => Math.min(1, Math.max(0, Number(value) || 0))).slice(0, 600)
+    : seat.snake.segmentPoints;
   seat.snake.alive = payload?.alive === false ? false : seat.snake.alive;
   seat.snake.finished = true;
   seat.status = "Finished run";

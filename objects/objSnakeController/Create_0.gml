@@ -64,8 +64,8 @@ showdownPlayer1Id = "";
 showdownPlayer2Id = "";
 showdownP1Name = "Player 1";
 showdownP2Name = "Player 2";
-showdownP1Snake = { score: 0, length: 3, distance: 0, headXNorm: 0.5, headYNorm: 0.5, alive: true };
-showdownP2Snake = { score: 0, length: 3, distance: 0, headXNorm: 0.5, headYNorm: 0.5, alive: true };
+showdownP1Snake = { score: 0, length: 3, distance: 0, headXNorm: 0.5, headYNorm: 0.5, alive: true, segmentPoints: [] };
+showdownP2Snake = { score: 0, length: 3, distance: 0, headXNorm: 0.5, headYNorm: 0.5, alive: true, segmentPoints: [] };
 
 selectedBetTarget = 1;
 selectedBetAmount = 10;
@@ -94,9 +94,62 @@ snakeScore = 0;
 snakeAlive = true;
 snakeStarted = false;
 snakeLength = 3;
+snakeFoodSpawnIndex = 0;
+snakeRaceSeedActive = 0;
 
 function snakeDistance(_ctrl) {
 	return max(0, _ctrl.snakeScore) + max(0, _ctrl.snakeLength - 3) * 5;
+}
+
+function snakeSeedValue(_seed, _index, _salt) {
+	var baseSeed = max(1, floor(abs(_seed)));
+	var baseIndex = max(0, floor(_index));
+	var salt = max(1, floor(abs(_salt)));
+	var mix = (baseSeed * 1664525 + (baseIndex + 1) * 1013904223 + salt * 69069) mod 2147483647;
+	if (mix <= 0) mix += 2147483646;
+	return mix;
+}
+
+function snakeSpawnFood(_ctrl) {
+	var emptyCells = [];
+	for (var xx = 0; xx < _ctrl.gridW; xx++) {
+		for (var yy = 0; yy < _ctrl.gridH; yy++) {
+			if (_ctrl.gameBoard[# xx, yy] == 0) {
+				array_push(emptyCells, [xx, yy]);
+			}
+		}
+	}
+
+	if (array_length(emptyCells) <= 0) {
+		return false;
+	}
+
+	var spawnIndex = _ctrl.snakeFoodSpawnIndex;
+	var chosenIndex;
+	var roll;
+	if (_ctrl.mode == "showdown" && _ctrl.snakeRaceSeedActive > 0) {
+		var positionSeed = snakeSeedValue(_ctrl.snakeRaceSeedActive, spawnIndex, 17);
+		var valueSeed = snakeSeedValue(_ctrl.snakeRaceSeedActive, spawnIndex, 53);
+		chosenIndex = positionSeed mod array_length(emptyCells);
+		roll = valueSeed mod 100;
+	} else {
+		chosenIndex = irandom(array_length(emptyCells) - 1);
+		roll = irandom(99);
+	}
+
+	var chosen = emptyCells[chosenIndex];
+	var fx = chosen[0];
+	var fy = chosen[1];
+	if (roll < 70) {
+		_ctrl.gameBoard[# fx, fy] = 2;
+	} else if (roll < 92) {
+		_ctrl.gameBoard[# fx, fy] = 3;
+	} else {
+		_ctrl.gameBoard[# fx, fy] = 4;
+	}
+
+	_ctrl.snakeFoodSpawnIndex += 1;
+	return true;
 }
 
 function snakeResetBoard(_ctrl) {
@@ -111,10 +164,11 @@ function snakeResetBoard(_ctrl) {
 	_ctrl.snakeAlive = true;
 	_ctrl.snakeStarted = true;
 	_ctrl.moveTimer = 0;
+	_ctrl.snakeFoodSpawnIndex = 0;
 	for (var i = 0; i < array_length(_ctrl.snakeX); i++) {
 		_ctrl.gameBoard[# _ctrl.snakeX[i], _ctrl.snakeY[i]] = 1;
 	}
-	if (!spawn_food(_ctrl.gameBoard, _ctrl.gridW, _ctrl.gridH)) {
+	if (!snakeSpawnFood(_ctrl)) {
 		_ctrl.snakeAlive = false;
 	}
 	_ctrl.snakeLength = array_length(_ctrl.snakeX);
@@ -123,13 +177,19 @@ function snakeResetBoard(_ctrl) {
 function snakeReadTelemetry(_ctrl) {
 	var headX = _ctrl.snakeX[0];
 	var headY = _ctrl.snakeY[0];
+	var segmentPoints = [];
+	for (var i = 0; i < array_length(_ctrl.snakeX); i++) {
+		array_push(segmentPoints, clamp((_ctrl.snakeX[i] + 0.5) / max(1, _ctrl.gridW), 0, 1));
+		array_push(segmentPoints, clamp((_ctrl.snakeY[i] + 0.5) / max(1, _ctrl.gridH), 0, 1));
+	}
 	return {
 		score: _ctrl.snakeScore,
 		length: array_length(_ctrl.snakeX),
 		distance: snakeDistance(_ctrl),
 		headXNorm: clamp((headX + 0.5) / max(1, _ctrl.gridW), 0, 1),
 		headYNorm: clamp((headY + 0.5) / max(1, _ctrl.gridH), 0, 1),
-		alive: _ctrl.snakeAlive
+		alive: _ctrl.snakeAlive,
+		segmentPoints: segmentPoints
 	};
 }
 
@@ -141,7 +201,9 @@ function snakeBeginRun(_ctrl) {
 	_ctrl.showdownLocalFinished = false;
 	if (_ctrl.mode == "showdown") {
 		_ctrl.localRaceSeedStarted = _ctrl.showdownRaceSeed;
-		if (_ctrl.showdownRaceSeed > 0) random_set_seed(max(1, floor(abs(_ctrl.showdownRaceSeed))));
+		_ctrl.snakeRaceSeedActive = max(1, floor(abs(_ctrl.showdownRaceSeed)));
+	} else {
+		_ctrl.snakeRaceSeedActive = 0;
 	}
 	snakeResetBoard(_ctrl);
 	_ctrl.state = "PLAYING";
