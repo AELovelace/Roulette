@@ -201,8 +201,8 @@
   ],
   "name":"rmBreakout",
   "parent":{
-    "name":"Rooms",
-    "path":"folders/Rooms.yy",
+    "name":"ArcadeGames",
+    "path":"folders/Rooms/ArcadeGames.yy",
   },
   "parentRoom":null,
   "physicsSettings":{

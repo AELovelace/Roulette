@@ -10,7 +10,7 @@
   "overriddenProperties":[],
   "parent":{
     "name":"Breakout",
-    "path":"folders/Objects/Breakout.yy",
+    "path":"folders/Objects/Arcade/Breakout.yy",
   },
   "parentObjectId":null,
   "persistent":false,

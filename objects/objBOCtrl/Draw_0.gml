@@ -19,10 +19,6 @@ function drawBreakoutTelemetryField(_px, _py, _pw, _ph, _title, _telemetry, _loc
 	draw_set_colour(_localFocus ? make_color_rgb(110, 188, 236) : make_color_rgb(86, 130, 176));
 	draw_roundrect(_px, _py, _px + _pw, _py + _ph, true);
 
-	var tScore = rouletteStructGet(_telemetry, "score", 0);
-	var tLevel = rouletteStructGet(_telemetry, "level", 1);
-	var tLives = rouletteStructGet(_telemetry, "lives", 3);
-	var tDistance = rouletteStructGet(_telemetry, "distance", 0);
 	var tBatNorm = clamp(_batOverride >= 0 ? _batOverride : rouletteStructGet(_telemetry, "batNorm", 0.5), 0, 1);
 	var tBallXNorm = clamp(_ballXOverride >= 0 ? _ballXOverride : rouletteStructGet(_telemetry, "ballXNorm", 0.5), 0, 1);
 	var tBallYNorm = clamp(_ballYOverride >= 0 ? _ballYOverride : rouletteStructGet(_telemetry, "ballYNorm", 0.85), 0, 1);
@@ -44,12 +40,6 @@ function drawBreakoutTelemetryField(_px, _py, _pw, _ph, _title, _telemetry, _loc
 
 	draw_set_halign(fa_left);
 	draw_set_valign(fa_top);
-	draw_set_colour(c_white);
-	draw_text(_px + 10, _py + 8, _title);
-	draw_set_colour(make_color_rgb(188, 202, 220));
-	draw_text(_px + 10, _py + 26, "Score " + string(tScore) + " | Level " + string(tLevel) + " | Lives " + string(tLives));
-	draw_text(_px + 10, _py + 42, "Distance " + string(tDistance));
-
 	var boardX = _px + 32;
 	var boardY = _py + 32;
 	var boardW = _pw - 64;
@@ -422,27 +412,49 @@ if (state == "PLAYING" || state == "GAMEOVER") {
 
 	if (mode == "showdown") {
 		var localIsP1 = breakoutPlayerId != "" && breakoutPlayerId == showdownPlayer1Id;
+		var localName = localIsP1 ? showdownP1Name : showdownP2Name;
 		var remoteName = localIsP1 ? showdownP2Name : showdownP1Name;
 		var remoteBo = localIsP1 ? showdownP2Breakout : showdownP1Breakout;
 		var remoteArenaX = localIsP1 ? showdownArenaRightX : showdownArenaLeftX;
 		var remoteBallXDraw = localIsP1 ? showdownP2BallXDraw : showdownP1BallXDraw;
 		var remoteBallYDraw = localIsP1 ? showdownP2BallYDraw : showdownP1BallYDraw;
-
-		draw_set_colour(make_color_rgb(16, 26, 40));
-		draw_roundrect(198, 48, room_width - 8, 124, false);
-		draw_set_colour(make_color_rgb(110, 170, 210));
-		draw_roundrect(198, 48, room_width - 8, 124, true);
-		draw_set_colour(c_white);
-		draw_text(208, 56, "Opponent: " + remoteName);
-		draw_text(208, 74, "Score " + string(rouletteStructGet(remoteBo, "score", 0)) + " | Level " + string(rouletteStructGet(remoteBo, "level", 1)) + " | Lives " + string(rouletteStructGet(remoteBo, "lives", 3)));
-		draw_text(208, 92, "Distance " + string(rouletteStructGet(remoteBo, "distance", 0)));
-		draw_text(208, 110, "Showdown state: " + showdownState);
 		draw_set_halign(fa_center);
 		draw_set_valign(fa_bottom);
 		draw_set_colour(c_white);
 		draw_text(remoteArenaX + arenaW * 0.5, showdownArenaY - 10, remoteName);
 		var remoteBatDraw = localIsP1 ? showdownP2BatDraw : showdownP1BatDraw;
 		drawBreakoutTelemetryField(remoteArenaX, showdownArenaY, arenaW, arenaH, remoteName, remoteBo, false, remoteBallXDraw, remoteBallYDraw, remoteBatDraw);
+
+		var localScoreValue = max(0, global.BOPScore);
+		var localLevelValue = max(1, level);
+		var localLivesValue = max(0, global.BOPLives);
+		var localDistanceValue = max(0, breakoutDistance(id));
+		var remoteScoreValue = rouletteStructGet(remoteBo, "score", 0);
+		var remoteLevelValue = rouletteStructGet(remoteBo, "level", 1);
+		var remoteLivesValue = rouletteStructGet(remoteBo, "lives", 3);
+		var remoteDistanceValue = rouletteStructGet(remoteBo, "distance", 0);
+
+		draw_set_colour(make_color_rgb(12, 18, 28));
+		draw_roundrect(currentArenaX + 18, showdownArenaY + arenaH + 10, currentArenaX + arenaW - 18, showdownArenaY + arenaH + 66, false);
+		draw_set_colour(make_color_rgb(66, 118, 154));
+		draw_roundrect(currentArenaX + 18, showdownArenaY + arenaH + 10, currentArenaX + arenaW - 18, showdownArenaY + arenaH + 66, true);
+		draw_set_halign(fa_left);
+		draw_set_valign(fa_top);
+		draw_set_colour(c_white);
+		draw_text(currentArenaX + 30, showdownArenaY + arenaH + 20, localName + "  |  Score " + string(localScoreValue) + "  |  Level " + string(localLevelValue) + "  |  Lives " + string(localLivesValue));
+		draw_set_colour(make_color_rgb(190, 200, 214));
+		draw_text(currentArenaX + 30, showdownArenaY + arenaH + 40, "Distance " + string(localDistanceValue));
+
+		draw_set_colour(make_color_rgb(12, 18, 28));
+		draw_roundrect(remoteArenaX + 18, showdownArenaY + arenaH + 10, remoteArenaX + arenaW - 18, showdownArenaY + arenaH + 66, false);
+		draw_set_colour(make_color_rgb(66, 118, 154));
+		draw_roundrect(remoteArenaX + 18, showdownArenaY + arenaH + 10, remoteArenaX + arenaW - 18, showdownArenaY + arenaH + 66, true);
+		draw_set_halign(fa_left);
+		draw_set_valign(fa_top);
+		draw_set_colour(c_white);
+		draw_text(remoteArenaX + 30, showdownArenaY + arenaH + 20, remoteName + "  |  Score " + string(remoteScoreValue) + "  |  Level " + string(remoteLevelValue) + "  |  Lives " + string(remoteLivesValue));
+		draw_set_colour(make_color_rgb(190, 200, 214));
+		draw_text(remoteArenaX + 30, showdownArenaY + arenaH + 40, "Distance " + string(remoteDistanceValue) + "  |  State " + showdownState);
 	}
 }
 
@@ -462,6 +474,36 @@ if (state == "SHOWDOWN_WATCH") {
 
 	drawBreakoutTelemetryField(showdownArenaLeftX, showdownArenaY, arenaW, arenaH, showdownP1Name, showdownP1Breakout, showdownPlayer1Id == breakoutPlayerId, showdownP1BallXDraw, showdownP1BallYDraw, showdownP1BatDraw);
 	drawBreakoutTelemetryField(showdownArenaRightX, showdownArenaY, arenaW, arenaH, showdownP2Name, showdownP2Breakout, showdownPlayer2Id == breakoutPlayerId, showdownP2BallXDraw, showdownP2BallYDraw, showdownP2BatDraw);
+
+	var p1Score = rouletteStructGet(showdownP1Breakout, "score", 0);
+	var p1Level = rouletteStructGet(showdownP1Breakout, "level", 1);
+	var p1Lives = rouletteStructGet(showdownP1Breakout, "lives", 3);
+	var p1Distance = rouletteStructGet(showdownP1Breakout, "distance", 0);
+	draw_set_colour(make_color_rgb(12, 18, 28));
+	draw_roundrect(showdownArenaLeftX + 18, showdownArenaY + arenaH + 10, showdownArenaLeftX + arenaW - 18, showdownArenaY + arenaH + 66, false);
+	draw_set_colour(make_color_rgb(66, 118, 154));
+	draw_roundrect(showdownArenaLeftX + 18, showdownArenaY + arenaH + 10, showdownArenaLeftX + arenaW - 18, showdownArenaY + arenaH + 66, true);
+	draw_set_halign(fa_left);
+	draw_set_valign(fa_top);
+	draw_set_colour(c_white);
+	draw_text(showdownArenaLeftX + 30, showdownArenaY + arenaH + 20, showdownP1Name + "  |  Score " + string(p1Score) + "  |  Level " + string(p1Level) + "  |  Lives " + string(p1Lives));
+	draw_set_colour(make_color_rgb(190, 200, 214));
+	draw_text(showdownArenaLeftX + 30, showdownArenaY + arenaH + 40, "Distance " + string(p1Distance));
+
+	var p2Score = rouletteStructGet(showdownP2Breakout, "score", 0);
+	var p2Level = rouletteStructGet(showdownP2Breakout, "level", 1);
+	var p2Lives = rouletteStructGet(showdownP2Breakout, "lives", 3);
+	var p2Distance = rouletteStructGet(showdownP2Breakout, "distance", 0);
+	draw_set_colour(make_color_rgb(12, 18, 28));
+	draw_roundrect(showdownArenaRightX + 18, showdownArenaY + arenaH + 10, showdownArenaRightX + arenaW - 18, showdownArenaY + arenaH + 66, false);
+	draw_set_colour(make_color_rgb(66, 118, 154));
+	draw_roundrect(showdownArenaRightX + 18, showdownArenaY + arenaH + 10, showdownArenaRightX + arenaW - 18, showdownArenaY + arenaH + 66, true);
+	draw_set_halign(fa_left);
+	draw_set_valign(fa_top);
+	draw_set_colour(c_white);
+	draw_text(showdownArenaRightX + 30, showdownArenaY + arenaH + 20, showdownP2Name + "  |  Score " + string(p2Score) + "  |  Level " + string(p2Level) + "  |  Lives " + string(p2Lives));
+	draw_set_colour(make_color_rgb(190, 200, 214));
+	draw_text(showdownArenaRightX + 30, showdownArenaY + arenaH + 40, "Distance " + string(p2Distance));
 }
 
 if (state == "GAMEOVER" && mode == "solo") {
