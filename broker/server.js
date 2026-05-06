@@ -1061,12 +1061,23 @@ function breakoutOpenChallengerPrompt(lobby, reasonText) {
 function breakoutSnapshot(lobby) {
   if (!lobby || lobby.game !== "breakout") return undefined;
   const breakout = lobby.breakout;
-  const betLedger = Object.entries(breakout.bets || {}).map(([bettorId, bet]) => ({
-    bettorId,
-    bettorName: state.players.get(bettorId)?.name || "Spectator",
-    targetId: String(bet?.targetId || ""),
-    amount: Math.max(0, Number(bet?.amount) || 0),
-  })).filter((entry) => entry.amount > 0 && entry.targetId);
+  const betLedger = [];
+  for (const [bettorId, bet] of Object.entries(breakout.bets || {})) {
+    const bettorName = state.players.get(bettorId)?.name || "Spectator";
+    const targets = bet && typeof bet.targets === "object"
+      ? bet.targets
+      : (bet && bet.targetId ? { [String(bet.targetId)]: Math.max(0, Number(bet.amount) || 0) } : {});
+    for (const [targetId, amountRaw] of Object.entries(targets)) {
+      const amount = Math.max(0, Number(amountRaw) || 0);
+      if (!targetId || amount <= 0) continue;
+      betLedger.push({
+        bettorId,
+        bettorName,
+        targetId,
+        amount,
+      });
+    }
+  }
   return {
     state: breakout.state,
     player1Id: breakout.player1Id,
@@ -1961,12 +1972,13 @@ async function settleBreakoutBets(lobby) {
   for (const [bettorId, bet] of betEntries) {
     const bettor = state.players.get(bettorId);
     if (!bettor) continue;
-    const amount = Math.max(0, Number(bet?.amount) || 0);
-    const targetId = String(bet?.targetId || "");
-    if (amount <= 0) continue;
-    if (targetId !== winnerId) continue;
+    const targets = bet && typeof bet.targets === "object"
+      ? bet.targets
+      : (bet && bet.targetId ? { [String(bet.targetId)]: Math.max(0, Number(bet.amount) || 0) } : {});
+    const winningAmount = Math.max(0, Number(targets[winnerId]) || 0);
+    if (winningAmount <= 0) continue;
 
-    const payout = amount * 2;
+    const payout = winningAmount * 2;
     const creditId = `bo-bet-win-${lobby.id}-${bettorId}-${winnerId}-${Date.now()}`;
     await sgcCreditPlayer(bettor, payout, `Breakout showdown bet win ${lobby.id}`, creditId);
   }
@@ -2181,11 +2193,15 @@ async function breakoutPlaceBet(player, payload) {
     return;
   }
 
-  breakout.bets[player.id] = {
-    targetId,
-    amount,
-  };
-  seat.status = `Bet ${amount} on ${(state.players.get(targetId)?.name || "racer")}`;
+  const playerBet = breakout.bets[player.id] || { targets: {} };
+  if (!playerBet.targets || typeof playerBet.targets !== "object") {
+    playerBet.targets = {};
+  }
+  playerBet.targets[targetId] = Math.max(0, Number(playerBet.targets[targetId]) || 0) + amount;
+  breakout.bets[player.id] = playerBet;
+
+  const targetTotal = Math.max(0, Number(playerBet.targets[targetId]) || 0);
+  seat.status = `Bet +${amount} on ${(state.players.get(targetId)?.name || "racer")} (total ${targetTotal})`;
   broadcastTableGame("breakout");
 }
 

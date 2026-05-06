@@ -126,15 +126,6 @@ if (state == "SHOWDOWN_LOBBY") {
 		}
 
 		if (inCurrentLobby) {
-			var myBreakoutBetAmount = 0;
-			for (var betIndex = 0; betIndex < array_length(showdownBreakoutBets); betIndex++) {
-				var betRow = showdownBreakoutBets[betIndex];
-				if (rouletteStructGet(betRow, "bettorId", "") == breakoutPlayerId) {
-					myBreakoutBetAmount = max(0, floor(rouletteStructGet(betRow, "amount", 0)));
-					break;
-				}
-			}
-
 			if (mouse_check_button_pressed(mb_left) && hoverLeave) {
 				rouletteSendJson(breakoutBrokerSocket, { type: "table_leave_lobby", game: showdownGameKey });
 			}
@@ -152,7 +143,7 @@ if (state == "SHOWDOWN_LOBBY") {
 			if (mouse_check_button_pressed(mb_left) && hoverBet25) selectedBetAmount = 25;
 			if (mouse_check_button_pressed(mb_left) && hoverBet100) selectedBetAmount = 100;
 
-			if (showdownRole == "spectator" && showdownAllowBets && myBreakoutBetAmount <= 0) {
+			if (showdownRole == "spectator" && showdownAllowBets) {
 				if (mouse_check_button_pressed(mb_left) && (hoverBetP1 || hoverBetP2)) {
 					selectedBetTarget = hoverBetP1 ? 1 : 2;
 					var targetId = selectedBetTarget == 1 ? showdownPlayer1Id : showdownPlayer2Id;

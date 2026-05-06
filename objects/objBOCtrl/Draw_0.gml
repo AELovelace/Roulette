@@ -275,7 +275,8 @@ if (state == "SHOWDOWN_LOBBY") {
 		draw_text(contentLeft, betSectionY, "Spectator Bets");
 
 		var myBetAmount = 0;
-		var myBetTargetId = "";
+		var myP1Total = 0;
+		var myP2Total = 0;
 		var p1Total = 0;
 		var p2Total = 0;
 		for (var betIndex = 0; betIndex < array_length(showdownBreakoutBets); betIndex++) {
@@ -287,12 +288,16 @@ if (state == "SHOWDOWN_LOBBY") {
 			if (targetId == showdownPlayer1Id) p1Total += amount;
 			if (targetId == showdownPlayer2Id) p2Total += amount;
 			if (bettorId == breakoutPlayerId) {
-				myBetAmount = amount;
-				myBetTargetId = targetId;
+				myBetAmount += amount;
+				if (targetId == showdownPlayer1Id) myP1Total += amount;
+				if (targetId == showdownPlayer2Id) myP2Total += amount;
 			}
 		}
 
-		var canPlaceBet = showdownRole == "spectator" && showdownAllowBets && myBetAmount <= 0;
+		var p1OthersTotal = max(0, p1Total - myP1Total);
+		var p2OthersTotal = max(0, p2Total - myP2Total);
+
+		var canPlaceBet = showdownRole == "spectator" && showdownAllowBets;
 		var chipValues = [1, 5, 10, 25, 100];
 		for (var chipIndex = 0; chipIndex < array_length(chipValues); chipIndex++) {
 			var chipValue = chipValues[chipIndex];
@@ -321,28 +326,29 @@ if (state == "SHOWDOWN_LOBBY") {
 		draw_text(contentLeft + 12, betSpotY + 8, showdownP1Name + " (P1)");
 		draw_text(contentLeft + betSpotW + gap + 12, betSpotY + 8, showdownP2Name + " (P2)");
 		draw_set_colour(make_color_rgb(176, 188, 202));
-		draw_text(contentLeft + 12, betSpotY + 26, "Table: " + string(p1Total) + " SGC");
-		draw_text(contentLeft + betSpotW + gap + 12, betSpotY + 26, "Table: " + string(p2Total) + " SGC");
+		draw_text(contentLeft + 12, betSpotY + 26, "Table: " + string(p1Total) + " SGC   You: " + string(myP1Total));
+		draw_text(contentLeft + betSpotW + gap + 12, betSpotY + 26, "Table: " + string(p2Total) + " SGC   You: " + string(myP2Total));
 
-		if (p1Total > 0) {
-			drawBetChip(contentLeft + 36, betSpotY + betSpotH - 24, p1Total, false);
+		if (p1OthersTotal > 0) {
+			drawBetChip(contentLeft + 36, betSpotY + betSpotH - 24, p1OthersTotal, false);
 		}
-		if (p2Total > 0) {
-			drawBetChip(contentLeft + betSpotW + gap + 36, betSpotY + betSpotH - 24, p2Total, false);
+		if (p2OthersTotal > 0) {
+			drawBetChip(contentLeft + betSpotW + gap + 36, betSpotY + betSpotH - 24, p2OthersTotal, false);
 		}
 
-		if (myBetAmount > 0) {
-			var myChipX = myBetTargetId == showdownPlayer1Id ? contentLeft + betSpotW - 34 : contentLeft + betSpotW * 2 + gap - 34;
-			var myChipY = betSpotY + betSpotH - 24;
-			drawBetChip(myChipX, myChipY, myBetAmount, true);
-			draw_set_colour(make_color_rgb(214, 192, 140));
-			draw_text(contentLeft, betSpotY + betSpotH + 6, "Your bet is locked for this showdown.");
-		} else if (!showdownAllowBets) {
+		if (myP1Total > 0) {
+			drawBetChip(contentLeft + betSpotW - 34, betSpotY + betSpotH - 24, myP1Total, true);
+		}
+		if (myP2Total > 0) {
+			drawBetChip(contentLeft + betSpotW * 2 + gap - 34, betSpotY + betSpotH - 24, myP2Total, true);
+		}
+
+		if (!showdownAllowBets) {
 			draw_set_colour(make_color_rgb(176, 188, 202));
 			draw_text(contentLeft, betSpotY + betSpotH + 6, "Betting closed while race is live.");
 		} else if (showdownRole == "spectator") {
 			draw_set_colour(make_color_rgb(176, 188, 202));
-			draw_text(contentLeft, betSpotY + betSpotH + 6, "Pick chip value, then click P1 or P2 to place.");
+			draw_text(contentLeft, betSpotY + betSpotH + 6, "Pick chip value, then click P1/P2 to add chips (repeat to stack).");
 		}
 
 		if (showdownPromptOpen && showdownRole == "spectator") {
