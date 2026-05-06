@@ -688,7 +688,7 @@ function markOauthLinked(sessionId, externalId, displayName) {
   }
 }
 
-const tableGames = new Set(["slots", "pachinko", "blackjack", "holdem", "horse", "breakout"]);
+const tableGames = new Set(["slots", "pachinko", "blackjack", "holdem", "horse", "breakout", "snake"]);
 const slotSymbolCount = 6;
 const slotPoints = [1, 2, 3, 5, 7, 10];
 const pachinkoWidth = 10;
@@ -890,6 +890,16 @@ function createEmptyTableSeat(player) {
       finished: false,
       acceptedRematch: null,
     },
+    snake: {
+      score: 0,
+      length: 3,
+      distance: 0,
+      headXNorm: 0.5,
+      headYNorm: 0.5,
+      alive: true,
+      finished: false,
+      acceptedRematch: null,
+    },
     timer: null,
   };
 }
@@ -930,10 +940,27 @@ function createTableLobby(game, name) {
       rematchVotes: {},
       showdownSummary: "Waiting for two racers.",
     },
+    snake: {
+      state: "waiting",
+      player1Id: "",
+      player2Id: "",
+      raceSeed: 0,
+      winnerId: "",
+      loserId: "",
+      challengerPromptOpen: false,
+      allowBets: true,
+      scoreboard: {},
+      bets: {},
+      rematchVotes: {},
+      showdownSummary: "Waiting for two racers.",
+    },
   };
 
   if (game !== "breakout") {
     delete lobby.breakout;
+  }
+  if (game !== "snake") {
+    delete lobby.snake;
   }
   state.tableLobbies.set(lobby.id, lobby);
   return lobby;
@@ -944,6 +971,7 @@ function tableMaxPlayers(game) {
   if (game === "blackjack") return 6;
   if (game === "horse") return 20;
   if (game === "breakout") return 7;
+  if (game === "snake") return 7;
   return 8;
 }
 
@@ -1124,6 +1152,14 @@ function removePlayerFromTableLobby(player) {
     delete breakout.scoreboard[player.id];
     delete breakout.bets[player.id];
   }
+  if (lobby.game === "snake") {
+    const snake = lobby.snake;
+    if (snake.player1Id === player.id) snake.player1Id = "";
+    if (snake.player2Id === player.id) snake.player2Id = "";
+    delete snake.rematchVotes[player.id];
+    delete snake.scoreboard[player.id];
+    delete snake.bets[player.id];
+  }
 
   lobby.seats.delete(player.id);
   lobby.playerIds = lobby.playerIds.filter((id) => id !== player.id);
@@ -1150,6 +1186,8 @@ function removePlayerFromTableLobby(player) {
     state.tableLobbies.delete(lobby.id);
   } else if (lobby.game === "breakout") {
     breakoutEnsureRoles(lobby);
+  } else if (lobby.game === "snake") {
+    snakeEnsureRoles(lobby);
   }
 }
 
@@ -1178,6 +1216,23 @@ function assignPlayerToTableLobby(player, lobby) {
       seat.status = "Spectating";
     }
     breakoutEnsureRoles(lobby);
+  }
+  if (lobby.game === "snake") {
+    const snake = lobby.snake;
+    const seat = lobby.seats.get(player.id);
+    if (!snake.player1Id) {
+      snake.player1Id = player.id;
+      seat.role = "racer";
+      seat.status = "Player 1";
+    } else if (!snake.player2Id) {
+      snake.player2Id = player.id;
+      seat.role = "racer";
+      seat.status = "Player 2";
+    } else {
+      seat.role = "spectator";
+      seat.status = "Spectating";
+    }
+    snakeEnsureRoles(lobby);
   }
 
   if (!lobby.hostPlayerId) lobby.hostPlayerId = player.id;
@@ -1418,6 +1473,7 @@ function buildTableSeats(lobby) {
       raceBet: seat.raceBet,
       role: seat.role,
       breakout: seat.breakout,
+      snake: seat.snake,
     };
   });
   while (seats.length < tableMaxPlayers(lobby.game)) seats.push(null);
@@ -1451,6 +1507,7 @@ function buildTableParticipants(lobby, forPlayer) {
       horseChoice: seat.horseChoice,
       role: seat.role,
       breakout: seat.breakout,
+      snake: seat.snake,
     };
   }).filter(Boolean);
 }
@@ -1485,6 +1542,7 @@ function buildTableSnapshot(forPlayer, game) {
     horseUnderdog: inRequestedGame && lobby.game === "horse" ? lobby.horseUnderdog : -1,
     horseWins: inRequestedGame && lobby.game === "horse" ? lobby.horseWins : [0, 0, 0, 0],
     breakout: inRequestedGame && lobby.game === "breakout" ? breakoutSnapshot(lobby) : undefined,
+    snake: inRequestedGame && lobby.game === "snake" ? snakeSnapshot(lobby) : undefined,
   };
 }
 
@@ -2249,6 +2307,435 @@ async function breakoutSingleSettle(player, payload) {
   }
 }
 
+function snakeScoreDistance(length, score) {
+  const safeLength = Math.max(3, Number(length) || 3);
+  const safeScore = Math.max(0, Number(score) || 0);
+  return safeScore + (safeLength - 3) * 5;
+}
+
+function snakeEnsureRoles(lobby) {
+  if (!lobby || lobby.game !== "snake") return;
+  const snake = lobby.snake;
+  if (!snake) return;
+
+  if (snake.player1Id && !lobby.seats.has(snake.player1Id)) snake.player1Id = "";
+  if (snake.player2Id && !lobby.seats.has(snake.player2Id)) snake.player2Id = "";
+
+  if (!snake.player1Id) {
+    snake.player1Id = lobby.playerIds[0] || "";
+  }
+  if (!snake.player2Id) {
+    snake.player2Id = lobby.playerIds.find((id) => id !== snake.player1Id && lobby.seats.has(id)) || "";
+  }
+
+  for (const id of lobby.playerIds) {
+    const seat = lobby.seats.get(id);
+    if (!seat) continue;
+    seat.role = (id === snake.player1Id || id === snake.player2Id) ? "racer" : "spectator";
+  }
+}
+
+function snakeRacerIds(lobby) {
+  if (!lobby || lobby.game !== "snake") return [];
+  const ids = [];
+  if (lobby.snake.player1Id && lobby.seats.has(lobby.snake.player1Id)) ids.push(lobby.snake.player1Id);
+  if (lobby.snake.player2Id && lobby.seats.has(lobby.snake.player2Id)) ids.push(lobby.snake.player2Id);
+  return ids;
+}
+
+function snakeResetRaceSeat(seat) {
+  seat.snake.score = 0;
+  seat.snake.length = 3;
+  seat.snake.distance = 0;
+  seat.snake.headXNorm = 0.5;
+  seat.snake.headYNorm = 0.5;
+  seat.snake.alive = true;
+  seat.snake.finished = false;
+  seat.snake.acceptedRematch = null;
+  seat.status = "Ready";
+}
+
+function snakeMoveWinnerToP1(lobby, winnerId) {
+  if (!lobby || lobby.game !== "snake") return;
+  if (!winnerId || !lobby.seats.has(winnerId)) return;
+  const snake = lobby.snake;
+  const previousP1 = snake.player1Id;
+  snake.player1Id = winnerId;
+  if (snake.player2Id === winnerId) {
+    snake.player2Id = previousP1 && previousP1 !== winnerId ? previousP1 : "";
+  }
+  snakeEnsureRoles(lobby);
+}
+
+function snakeOpenChallengerPrompt(lobby, reasonText) {
+  if (!lobby || lobby.game !== "snake") return;
+  const snake = lobby.snake;
+  const loserId = snake.loserId;
+  if (loserId && lobby.seats.has(loserId)) {
+    const loserSeat = lobby.seats.get(loserId);
+    loserSeat.role = "spectator";
+    loserSeat.status = "Spectating";
+  }
+  snake.player2Id = "";
+  snake.challengerPromptOpen = true;
+  snake.state = "waiting";
+  snake.allowBets = true;
+  snake.showdownSummary = reasonText || "Select next challenger.";
+  snake.rematchVotes = {};
+  snakeEnsureRoles(lobby);
+}
+
+function snakeSnapshot(lobby) {
+  if (!lobby || lobby.game !== "snake") return undefined;
+  const snake = lobby.snake;
+  const betLedger = [];
+  for (const [bettorId, bet] of Object.entries(snake.bets || {})) {
+    const bettorName = state.players.get(bettorId)?.name || "Spectator";
+    const targets = bet && typeof bet.targets === "object"
+      ? bet.targets
+      : (bet && bet.targetId ? { [String(bet.targetId)]: Math.max(0, Number(bet.amount) || 0) } : {});
+    for (const [targetId, amountRaw] of Object.entries(targets)) {
+      const amount = Math.max(0, Number(amountRaw) || 0);
+      if (!targetId || amount <= 0) continue;
+      betLedger.push({ bettorId, bettorName, targetId, amount });
+    }
+  }
+  return {
+    state: snake.state,
+    player1Id: snake.player1Id,
+    player2Id: snake.player2Id,
+    raceSeed: snake.raceSeed,
+    winnerId: snake.winnerId,
+    loserId: snake.loserId,
+    challengerPromptOpen: snake.challengerPromptOpen,
+    allowBets: snake.allowBets,
+    showdownSummary: snake.showdownSummary,
+    rematchVotes: snake.rematchVotes,
+    scoreboard: snake.scoreboard,
+    bets: betLedger,
+  };
+}
+
+async function startSnakeShowdown(player) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "snake") return;
+  const snake = lobby.snake;
+  snakeEnsureRoles(lobby);
+  const racers = snakeRacerIds(lobby);
+  if (racers.length < 2) {
+    lobby.lastEvent = "Snake showdown needs two racers.";
+    snake.showdownSummary = lobby.lastEvent;
+    broadcastTableGame("snake");
+    return;
+  }
+  if (snake.state === "racing") return;
+
+  const entryCost = 25;
+  for (const racerId of racers) {
+    const racer = state.players.get(racerId);
+    if (!racer) continue;
+    const chargeId = `snake-showdown-entry-${lobby.id}-${racerId}-${Date.now()}`;
+    const charge = await sgcChargePlayer(racer, entryCost, `Snake showdown entry ${lobby.id}`, chargeId);
+    if (!charge.ok) {
+      lobby.lastEvent = `${racer.name} could not pay ${entryCost} SGC buy-in.`;
+      snake.showdownSummary = lobby.lastEvent;
+      broadcastTableGame("snake");
+      return;
+    }
+  }
+
+  snake.state = "racing";
+  snake.allowBets = false;
+  snake.challengerPromptOpen = false;
+  snake.winnerId = "";
+  snake.loserId = "";
+  snake.raceSeed = Math.floor(Math.random() * 2147483000) + 1;
+  snake.rematchVotes = {};
+  snake.scoreboard = {};
+  snake.showdownSummary = "Race live. Survive farther to win.";
+
+  for (const id of racers) {
+    const seat = lobby.seats.get(id);
+    if (!seat) continue;
+    snakeResetRaceSeat(seat);
+    seat.status = id === snake.player1Id ? "Racing as P1" : "Racing as P2";
+  }
+
+  lobby.phase = "racing";
+  lobby.lastEvent = `${state.players.get(snake.player1Id)?.name || "P1"} vs ${state.players.get(snake.player2Id)?.name || "P2"} started.`;
+  broadcastTableGame("snake");
+}
+
+async function settleSnakeBets(lobby) {
+  if (!lobby || lobby.game !== "snake") return;
+  const snake = lobby.snake;
+  const winnerId = snake.winnerId;
+  if (!winnerId) return;
+
+  const betEntries = Object.entries(snake.bets || {});
+  for (const [bettorId, bet] of betEntries) {
+    const bettor = state.players.get(bettorId);
+    if (!bettor) continue;
+    const targets = bet && typeof bet.targets === "object"
+      ? bet.targets
+      : (bet && bet.targetId ? { [String(bet.targetId)]: Math.max(0, Number(bet.amount) || 0) } : {});
+    const winningAmount = Math.max(0, Number(targets[winnerId]) || 0);
+    if (winningAmount <= 0) continue;
+
+    const payout = winningAmount * 2;
+    const creditId = `snake-bet-win-${lobby.id}-${bettorId}-${winnerId}-${Date.now()}`;
+    await sgcCreditPlayer(bettor, payout, `Snake showdown bet win ${lobby.id}`, creditId);
+  }
+}
+
+async function settleSnakeRacerPayouts(lobby) {
+  if (!lobby || lobby.game !== "snake") return;
+  const snake = lobby.snake;
+  for (const racerId of snakeRacerIds(lobby)) {
+    const racer = state.players.get(racerId);
+    const seat = lobby.seats.get(racerId);
+    if (!racer || !seat) continue;
+    const scorePayout = Math.max(0, Number(seat.snake.score) || 0);
+    if (scorePayout <= 0) continue;
+    const creditId = `snake-score-${lobby.id}-${racerId}-${Date.now()}`;
+    await sgcCreditPlayer(racer, scorePayout, `Snake showdown score payout ${lobby.id}`, creditId);
+  }
+}
+
+async function finalizeSnakeRaceIfReady(lobby) {
+  if (!lobby || lobby.game !== "snake") return;
+  const snake = lobby.snake;
+  if (snake.state !== "racing") return;
+  const racers = snakeRacerIds(lobby);
+  if (racers.length < 2) return;
+
+  const seatA = lobby.seats.get(racers[0]);
+  const seatB = lobby.seats.get(racers[1]);
+  if (!seatA || !seatB) return;
+  if (!seatA.snake.finished || !seatB.snake.finished) return;
+
+  const distA = Math.max(0, Number(seatA.snake.distance) || snakeScoreDistance(seatA.snake.length, seatA.snake.score));
+  const distB = Math.max(0, Number(seatB.snake.distance) || snakeScoreDistance(seatB.snake.length, seatB.snake.score));
+  let winnerId = racers[0];
+  let loserId = racers[1];
+  if (distB > distA) {
+    winnerId = racers[1];
+    loserId = racers[0];
+  } else if (distA === distB) {
+    const scoreA = Number(seatA.snake.score) || 0;
+    const scoreB = Number(seatB.snake.score) || 0;
+    if (scoreB > scoreA) {
+      winnerId = racers[1];
+      loserId = racers[0];
+    }
+  }
+
+  snake.winnerId = winnerId;
+  snake.loserId = loserId;
+  snake.state = "showdown";
+  snake.allowBets = false;
+  snake.challengerPromptOpen = false;
+  snakeMoveWinnerToP1(lobby, winnerId);
+
+  const winner = state.players.get(winnerId);
+  const loser = state.players.get(loserId);
+  snake.scoreboard[winnerId] = {
+    score: lobby.seats.get(winnerId)?.snake.score || 0,
+    length: lobby.seats.get(winnerId)?.snake.length || 3,
+    distance: lobby.seats.get(winnerId)?.snake.distance || 0,
+  };
+  snake.scoreboard[loserId] = {
+    score: lobby.seats.get(loserId)?.snake.score || 0,
+    length: lobby.seats.get(loserId)?.snake.length || 3,
+    distance: lobby.seats.get(loserId)?.snake.distance || 0,
+  };
+  snake.rematchVotes = { [winnerId]: null, [loserId]: null };
+
+  await settleSnakeRacerPayouts(lobby);
+  await settleSnakeBets(lobby);
+
+  snake.bets = {};
+  lobby.phase = "showdown";
+  snake.showdownSummary = `${winner?.name || "Player 1"} won the showdown. Rematch?`;
+  lobby.lastEvent = `${winner?.name || "Player 1"} defeated ${loser?.name || "Player 2"}.`;
+
+  for (const id of racers) {
+    const seat = lobby.seats.get(id);
+    if (!seat) continue;
+    seat.status = id === winnerId ? "Winner" : "Runner-up";
+  }
+
+  broadcastTableGame("snake");
+}
+
+function snakeProgressUpdate(player, payload) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "snake") return;
+  const snake = lobby.snake;
+  if (snake.state !== "racing") return;
+  const seat = lobby.seats.get(player.id);
+  if (!seat || seat.role !== "racer") return;
+
+  seat.snake.score = Math.max(0, Number(payload?.score) || seat.snake.score);
+  seat.snake.length = Math.max(3, Number(payload?.length) || seat.snake.length);
+  seat.snake.distance = Math.max(0, Number(payload?.distance) || seat.snake.distance, snakeScoreDistance(seat.snake.length, seat.snake.score));
+  seat.snake.headXNorm = Math.min(1, Math.max(0, Number(payload?.headXNorm) || seat.snake.headXNorm));
+  seat.snake.headYNorm = Math.min(1, Math.max(0, Number(payload?.headYNorm) || seat.snake.headYNorm));
+  seat.snake.alive = payload?.alive === false ? false : seat.snake.alive;
+  if (seat.snake.alive === false) {
+    seat.snake.finished = true;
+  }
+}
+
+async function snakeFinish(player, payload) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "snake") return;
+  const snake = lobby.snake;
+  if (snake.state !== "racing") return;
+  const seat = lobby.seats.get(player.id);
+  if (!seat || seat.role !== "racer") return;
+
+  seat.snake.score = Math.max(0, Number(payload?.score) || seat.snake.score);
+  seat.snake.length = Math.max(3, Number(payload?.length) || seat.snake.length);
+  seat.snake.distance = Math.max(0, Number(payload?.distance) || seat.snake.distance, snakeScoreDistance(seat.snake.length, seat.snake.score));
+  seat.snake.headXNorm = Math.min(1, Math.max(0, Number(payload?.headXNorm) || seat.snake.headXNorm));
+  seat.snake.headYNorm = Math.min(1, Math.max(0, Number(payload?.headYNorm) || seat.snake.headYNorm));
+  seat.snake.alive = payload?.alive === false ? false : seat.snake.alive;
+  seat.snake.finished = true;
+  seat.status = "Finished run";
+
+  await finalizeSnakeRaceIfReady(lobby);
+}
+
+function snakeVoteRematch(player, accept) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "snake") return;
+  const snake = lobby.snake;
+  if (snake.state !== "showdown") return;
+  if (player.id !== snake.winnerId && player.id !== snake.loserId) return;
+
+  snake.rematchVotes[player.id] = !!accept;
+  const winnerVote = snake.rematchVotes[snake.winnerId];
+  const loserVote = snake.rematchVotes[snake.loserId];
+
+  if (winnerVote === true && loserVote === true) {
+    snake.state = "waiting";
+    snake.challengerPromptOpen = false;
+    snake.allowBets = true;
+    snake.showdownSummary = "Rematch accepted. Host can start the next race.";
+    snake.rematchVotes = {};
+    lobby.phase = "waiting";
+    snakeEnsureRoles(lobby);
+  } else if (winnerVote === false || loserVote === false) {
+    snakeOpenChallengerPrompt(lobby, "Rematch declined. Select next challenger for Player 2.");
+  }
+
+  broadcastTableGame("snake");
+}
+
+function snakeForceNextChallenger(player) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "snake") return;
+  const snake = lobby.snake;
+  if (snake.state !== "showdown") return;
+  if (player.id !== snake.winnerId && player.id !== snake.loserId) return;
+  snakeOpenChallengerPrompt(lobby, `${player.name} requested the next challenger.`);
+  broadcastTableGame("snake");
+}
+
+function snakeClaimPlayer2(player) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "snake") return;
+  const snake = lobby.snake;
+  const seat = lobby.seats.get(player.id);
+  if (!seat) return;
+  if (seat.role !== "spectator") return;
+  if (!snake.challengerPromptOpen && snake.state !== "waiting") return;
+
+  snake.player2Id = player.id;
+  seat.role = "racer";
+  seat.status = "Player 2";
+  snake.challengerPromptOpen = false;
+  snake.showdownSummary = `${player.name} claimed Player 2 seat.`;
+  snakeEnsureRoles(lobby);
+  broadcastTableGame("snake");
+}
+
+async function snakePlaceBet(player, payload) {
+  const lobby = getTableLobbyForPlayer(player);
+  if (!lobby || lobby.game !== "snake") return;
+  const snake = lobby.snake;
+  const seat = lobby.seats.get(player.id);
+  if (!seat || seat.role !== "spectator") return;
+  if (!snake.allowBets || snake.state === "racing") return;
+
+  const targetId = String(payload?.targetPlayerId || "");
+  const amount = Math.max(1, Number(payload?.amount) || 0);
+  if (targetId !== snake.player1Id && targetId !== snake.player2Id) return;
+  if (amount <= 0) return;
+
+  const chargeId = `snake-bet-${lobby.id}-${player.id}-${targetId}-${Date.now()}`;
+  const charge = await sgcChargePlayer(player, amount, `Snake bet ${lobby.id}`, chargeId);
+  if (!charge.ok) {
+    seat.status = charge.message || "Bet failed";
+    broadcastTableGame("snake");
+    return;
+  }
+
+  const playerBet = snake.bets[player.id] || { targets: {} };
+  if (!playerBet.targets || typeof playerBet.targets !== "object") playerBet.targets = {};
+  playerBet.targets[targetId] = Math.max(0, Number(playerBet.targets[targetId]) || 0) + amount;
+  snake.bets[player.id] = playerBet;
+
+  const targetTotal = Math.max(0, Number(playerBet.targets[targetId]) || 0);
+  seat.status = `Bet +${amount} on ${(state.players.get(targetId)?.name || "racer")} (total ${targetTotal})`;
+  broadcastTableGame("snake");
+}
+
+async function snakeSingleStart(player) {
+  const entryCost = 25;
+  const charge = await sgcChargePlayer(
+    player,
+    entryCost,
+    "Snake single-run entry",
+    `snake-solo-entry-${player.id}-${Date.now()}`
+  );
+
+  sendJson(player.socket, {
+    type: "snake_single_start_result",
+    ok: charge.ok,
+    balance: player.bankroll,
+    message: charge.ok ? "Entry paid." : (charge.message || "Unable to pay entry."),
+  });
+
+  if (charge.ok) {
+    broadcastState();
+  }
+}
+
+async function snakeSingleSettle(player, payload) {
+  const score = Math.max(0, Number(payload?.score) || 0);
+  const payout = score;
+  const credit = await sgcCreditPlayer(
+    player,
+    payout,
+    "Snake single-run score payout",
+    `snake-solo-payout-${player.id}-${Date.now()}`
+  );
+
+  sendJson(player.socket, {
+    type: "snake_single_settle_result",
+    ok: credit.ok,
+    payout,
+    balance: player.bankroll,
+    message: credit.ok ? "Payout settled." : (credit.message || "Payout failed."),
+  });
+
+  if (credit.ok) {
+    broadcastState();
+  }
+}
+
 function assignPlayerToLobby(player, lobby) {
   removePlayerFromLobby(player);
   player.lobbyId = lobby.id;
@@ -2937,6 +3424,16 @@ wss.on("connection", (socket) => {
       return;
     }
 
+    if (message.type === "snake_single_start") {
+      await snakeSingleStart(player);
+      return;
+    }
+
+    if (message.type === "snake_single_settle") {
+      await snakeSingleSettle(player, message);
+      return;
+    }
+
     if (message.type === "table_watch" && tableGames.has(message.game)) {
       sendTableSnapshot(player, message.game);
       return;
@@ -2950,7 +3447,7 @@ wss.on("connection", (socket) => {
       }
 
       const lobbyCount = buildTableLobbyList(message.game).length + 1;
-      const gameLabels = { slots: "Slots", pachinko: "Pachinko", blackjack: "Blackjack", holdem: "Hold'em", horse: "Horse Race", breakout: "Breakout Showdown" };
+      const gameLabels = { slots: "Slots", pachinko: "Pachinko", blackjack: "Blackjack", holdem: "Hold'em", horse: "Horse Race", breakout: "Breakout Showdown", snake: "Snake Showdown" };
       const gameLabel = gameLabels[message.game] || "Table";
       const lobbyName = (typeof message.name === "string" && message.name.trim())
         ? message.name.trim().slice(0, 24)
@@ -3091,6 +3588,42 @@ wss.on("connection", (socket) => {
 
     if (message.type === "table_breakout_place_bet") {
       await breakoutPlaceBet(player, message);
+      return;
+    }
+
+    if (message.type === "table_snake_start") {
+      await startSnakeShowdown(player);
+      return;
+    }
+
+    if (message.type === "table_snake_progress") {
+      snakeProgressUpdate(player, message);
+      broadcastTableGame("snake");
+      return;
+    }
+
+    if (message.type === "table_snake_finish") {
+      await snakeFinish(player, message);
+      return;
+    }
+
+    if (message.type === "table_snake_vote_rematch") {
+      snakeVoteRematch(player, !!message.accept);
+      return;
+    }
+
+    if (message.type === "table_snake_next_challenger") {
+      snakeForceNextChallenger(player);
+      return;
+    }
+
+    if (message.type === "table_snake_claim_player2") {
+      snakeClaimPlayer2(player);
+      return;
+    }
+
+    if (message.type === "table_snake_place_bet") {
+      await snakePlaceBet(player, message);
       return;
     }
 

@@ -19,13 +19,13 @@ arcadeDescriptions = [
 	"25 SGC buy-in. Multiplayer showdown.",
 	"Endless lane dash with traps. (Coming soon)",
 	"Arcade asteroid blaster. (Coming soon)",
-	"Classic snake with wager rounds. (Coming soon)"
+	"25 SGC buy-in. Multiplayer snake showdown."
 ];
 arcadeRooms = [
 	asset_get_index("rmBreakout"),
 	asset_get_index("RoomArcadeNeonRunner"),
 	asset_get_index("RoomArcadeAsteroidSweep"),
-	asset_get_index("RoomArcadeSnakeGrid")
+	asset_get_index("rmSnake")
 ];
 
 function arcadeIsAvailable(_index) {
