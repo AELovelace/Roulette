@@ -187,6 +187,14 @@ if (state == "GAMEOVER") {
 }
 
 if (state == "PLAYING") {
+	if (!snakeStarted) {
+		if (keyboard_check_pressed(vk_space)) {
+			snakeStarted = true;
+			statusText = mode == "showdown" ? "Snake showdown live." : "[SGC] Snake run started.";
+		}
+		exit;
+	}
+
 	if (keyboard_check_pressed(vk_right) && snakeDirX != -1) {
 		snakeNextDirX = 1;
 		snakeNextDirY = 0;

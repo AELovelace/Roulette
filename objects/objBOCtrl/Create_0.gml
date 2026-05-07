@@ -117,6 +117,10 @@ defaultGridStartY = currentArenaY + 32;
 showdownGridRows = 6;
 showdownGridStartY = showdownArenaY + 32;
 
+//particle system
+bo_particle_init();
+
+
 if (breakoutBrokerSocket < 0) {
 	breakoutBrokerSocket = network_create_socket(network_socket_ws);
 	if (breakoutBrokerSocket >= 0) {

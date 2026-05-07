@@ -162,7 +162,7 @@ function snakeResetBoard(_ctrl) {
 	_ctrl.snakeNextDirY = 0;
 	_ctrl.snakeScore = 0;
 	_ctrl.snakeAlive = true;
-	_ctrl.snakeStarted = true;
+	_ctrl.snakeStarted = false;
 	_ctrl.moveTimer = 0;
 	_ctrl.snakeFoodSpawnIndex = 0;
 	for (var i = 0; i < array_length(_ctrl.snakeX); i++) {
@@ -207,7 +207,7 @@ function snakeBeginRun(_ctrl) {
 	}
 	snakeResetBoard(_ctrl);
 	_ctrl.state = "PLAYING";
-	_ctrl.statusText = _ctrl.mode == "showdown" ? "Snake showdown live." : "[SGC] Snake run started.";
+	_ctrl.statusText = _ctrl.mode == "showdown" ? "Snake showdown ready. Press Space to start." : "[SGC] Snake run ready. Press Space to start.";
 }
 
 function snakeRequestSoloStart(_ctrl) {

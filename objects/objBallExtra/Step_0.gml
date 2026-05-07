@@ -11,6 +11,8 @@ if !go{
 }
 
 if (go) {
+	bo_particle_emit(id);
+
 	var boundsLeft = 0;
 	var boundsTop = 0;
 	var boundsRight = room_width;
@@ -55,5 +57,6 @@ if (go) {
 	if (bounced) {
 		if (speed < 12) speed += 0.1;
 		direction += 2 - random(4);
+		bounce_sound()
 	}
 }

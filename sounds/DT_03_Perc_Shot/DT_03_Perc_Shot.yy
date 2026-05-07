@@ -1,0 +1,26 @@
+{
+  "$GMSound":"v2",
+  "%Name":"DT_03_Perc_Shot",
+  "audioGroupId":{
+    "name":"audiogroup_default",
+    "path":"audiogroups/audiogroup_default",
+  },
+  "bitDepth":1,
+  "channelFormat":0,
+  "compression":0,
+  "compressionQuality":4,
+  "conversionMode":0,
+  "duration":0.15278912,
+  "exportDir":"",
+  "name":"DT_03_Perc_Shot",
+  "parent":{
+    "name":"bounceSounds",
+    "path":"folders/Sounds/bounceSounds.yy",
+  },
+  "preload":false,
+  "resourceType":"GMSound",
+  "resourceVersion":"2.0",
+  "sampleRate":44100,
+  "soundFile":"DT_03_Perc_Shot.wav",
+  "volume":1.0,
+}

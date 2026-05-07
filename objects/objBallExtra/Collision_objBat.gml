@@ -7,3 +7,4 @@
 		motion_add(_dir, _dist / 5);
 		// Maintain the speed
 		speed = _s;
+		bounce_sound();

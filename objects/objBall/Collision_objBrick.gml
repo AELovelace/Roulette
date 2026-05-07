@@ -10,3 +10,4 @@ move_bounce_all(true); // Set the bounce angle
 if speed < 12 speed += 0.1; // Make the ball faster
 global.BOPScore +=1
 instance_destroy(other); // Destroy the "other" object in the collision, ie: the brick
+bounce_sound()

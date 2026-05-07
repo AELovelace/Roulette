@@ -7,6 +7,7 @@ if !go{
 }
 
 if (go) {
+	bo_particle_emit(id)
 	var boundsLeft = 0;
 	var boundsTop = 0;
 	var boundsRight = room_width;
@@ -31,6 +32,7 @@ if (go) {
 	if (bbox_bottom > boundsBottom) {
 		var totalBalls = instance_number(objBall) + instance_number(objBallExtra);
 		var lastBall = totalBalls <= 1;
+		audio_play_sound(i_fucked_ur_mum, 10, false, 0.3)
 		if (lastBall) {
 			global.BOPLives -= 1;
 			if (global.BOPLives <= 0) {
@@ -51,5 +53,6 @@ if (go) {
 	if (bounced) {
 		if (speed < 12) speed += 0.1;
 		direction += 2 - random(4);
+		bounce_sound()
 	}
 }
